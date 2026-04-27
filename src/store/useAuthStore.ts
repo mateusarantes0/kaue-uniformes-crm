@@ -7,29 +7,53 @@ interface User {
   role: 'admin' | 'employee'
 }
 
-interface AuthStore {
-  user: User | null
-  login: (username: string, password: string) => boolean
-  logout: () => void
+interface UserCredential {
+  id: string
+  name: string
+  username: string
+  password: string
+  role: 'admin' | 'employee'
 }
 
-const USERS: Record<string, { password: string; user: User }> = {
-  admin: { password: 'admin123', user: { id: 'admin', name: 'Admin',  role: 'admin'    } },
-  noemi: { password: 'noemi123', user: { id: 'noemi', name: 'Noemi',  role: 'employee' } },
-  dione: { password: 'dione123', user: { id: 'dione', name: 'Dione',  role: 'employee' } },
+interface AuthStore {
+  user: User | null
+  users: UserCredential[]
+  login: (username: string, password: string) => boolean
+  logout: () => void
+  changePassword: (userId: string, currentPassword: string, newPassword: string) => boolean
 }
+
+const INITIAL_USERS: UserCredential[] = [
+  { id: 'admin', name: 'Admin', username: 'admin', password: 'admin123', role: 'admin'    },
+  { id: 'noemi', name: 'Noemi', username: 'noemi', password: 'noemi123', role: 'employee' },
+  { id: 'dione', name: 'Dione', username: 'dione', password: 'dione123', role: 'employee' },
+]
 
 export const useAuthStore = create<AuthStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
+      users: INITIAL_USERS,
+
       login: (username, password) => {
-        const entry = USERS[username]
-        if (!entry || entry.password !== password) return false
-        set({ user: entry.user })
+        const cred = get().users.find((u) => u.username === username)
+        if (!cred || cred.password !== password) return false
+        set({ user: { id: cred.id, name: cred.name, role: cred.role } })
         return true
       },
+
       logout: () => set({ user: null }),
+
+      changePassword: (userId, currentPassword, newPassword) => {
+        const cred = get().users.find((u) => u.id === userId)
+        if (!cred || cred.password !== currentPassword) return false
+        set({
+          users: get().users.map((u) =>
+            u.id === userId ? { ...u, password: newPassword } : u
+          ),
+        })
+        return true
+      },
     }),
     { name: 'kaue-crm-auth' }
   )
