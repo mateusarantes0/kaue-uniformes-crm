@@ -3,7 +3,7 @@ import { useStore } from '../store/useStore'
 import { formatCurrency, diasDesde } from '../utils'
 
 export function Dashboard() {
-  const clientes = useStore((s) => s.clientes)
+  const clientes = useStore((s) => s.clientesFiltrados)
 
   const stats = useMemo(() => {
     const ativos   = clientes.filter((c) => c.coluna !== 'perdido' && c.coluna !== 'vendido')

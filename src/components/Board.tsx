@@ -4,7 +4,7 @@ import { COLUNAS, Coluna } from '../types'
 import { Column } from './Column'
 
 export function Board() {
-  const clientes = useStore((s) => s.clientes)
+  const clientes = useStore((s) => s.clientesFiltrados)
   const moveCliente = useStore((s) => s.moveCliente)
   const setPendingMove = useStore((s) => s.setPendingMove)
 

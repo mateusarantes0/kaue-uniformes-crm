@@ -20,6 +20,7 @@ export interface HistoricoItem {
 
 export interface Cliente {
   id: string
+  ownerId?: string
   // Identificação
   nome: string
   whatsapp: string
