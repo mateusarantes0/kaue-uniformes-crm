@@ -1,134 +1,170 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { Cliente, Coluna, TipoObjecao } from '../types'
+import { Orcamento, Coluna, TipoObjecao, COLUNA_LABELS, Origem } from '../types'
 import { sampleData } from '../data/sampleData'
 import { nowISO } from '../utils'
 import { useAuthStore } from './useAuthStore'
 
 interface PendingMove {
-  clienteId: string
+  orcamentoId: string
   colunaDestino: Coluna
 }
 
-function computeFiltered(clientes: Cliente[]): Cliente[] {
+function computeFiltered(orcamentos: Orcamento[]): Orcamento[] {
   const { user } = useAuthStore.getState()
-  if (!user || user.role === 'admin') return clientes
-  return clientes.filter((c) => (c.ownerId ?? 'admin') === user.id)
+  if (!user || user.role === 'admin') return orcamentos
+  return orcamentos.filter((c) => (c.ownerId ?? 'admin') === user.id)
 }
 
 interface Store {
-  clientes: Cliente[]
-  clientesFiltrados: Cliente[]
+  orcamentos: Orcamento[]
+  orcamentosFiltrados: Orcamento[]
   modalCriar: boolean
-  modalEditar: Cliente | null
+  modalEditar: Orcamento | null
   pendingMove: PendingMove | null
 
-  addCliente: (data: Omit<Cliente, 'id' | 'criadoEm' | 'ultimaInteracao' | 'historico' | 'ownerId'>) => void
-  updateCliente: (id: string, data: Partial<Cliente>) => void
-  moveCliente: (id: string, coluna: Coluna, tipoObjecao?: TipoObjecao, observacaoObjecao?: string) => void
-  deleteCliente: (id: string) => void
+  addOrcamento: (data: Omit<Orcamento, 'id' | 'criadoEm' | 'atualizadoEm' | 'historico' | 'ownerId' | 'criadoPor' | 'atualizadoPor'>) => void
+  updateOrcamento: (id: string, data: Partial<Orcamento>) => void
+  moveOrcamento: (id: string, coluna: Coluna, tipoObjecao?: TipoObjecao, observacaoObjecao?: string) => void
+  deleteOrcamento: (id: string) => void
   refreshFiltrados: () => void
 
   setModalCriar: (open: boolean) => void
-  setModalEditar: (cliente: Cliente | null) => void
+  setModalEditar: (orcamento: Orcamento | null) => void
   setPendingMove: (move: PendingMove | null) => void
+}
+
+function mapLegacyOrigem(o: string): Origem {
+  const map: Record<string, string> = {
+    loja:       'loja_fisica',
+    prospeccao: 'prospeccao_ativa',
+    instagram:  'instagram_organico',
+    outros:     'indicacao',
+  }
+  return (map[o] ?? o) as Origem
 }
 
 export const useStore = create<Store>()(
   persist(
     (set) => ({
-      clientes: sampleData,
-      clientesFiltrados: sampleData,
+      orcamentos: sampleData,
+      orcamentosFiltrados: sampleData,
       modalCriar: false,
       modalEditar: null,
       pendingMove: null,
 
-      addCliente: (data) => {
+      addOrcamento: (data) => {
         const now = nowISO()
-        const cliente: Cliente = {
+        const userId = useAuthStore.getState().user?.id ?? 'admin'
+        const orcamento: Orcamento = {
           ...data,
-          ownerId: useAuthStore.getState().user?.id ?? 'admin',
+          ownerId: userId,
           id: `c_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
           criadoEm: now,
-          ultimaInteracao: now,
-          historico: [{ data: now, texto: `Cliente cadastrado — origem: ${data.origem}` }],
+          atualizadoEm: now,
+          criadoPor: userId,
+          atualizadoPor: userId,
+          contatosIds: data.contatosIds ?? [],
+          responsavelId: data.responsavelId ?? userId,
+          historico: [{ data: now, texto: 'Orçamento cadastrado', usuarioId: userId }],
         }
         set((s) => {
-          const clientes = [cliente, ...s.clientes]
-          return { clientes, clientesFiltrados: computeFiltered(clientes) }
+          const orcamentos = [orcamento, ...s.orcamentos]
+          return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
         })
       },
 
-      updateCliente: (id, data) => {
+      updateOrcamento: (id, data) => {
         const now = nowISO()
+        const userId = useAuthStore.getState().user?.id ?? 'admin'
         set((s) => {
-          const clientes = s.clientes.map((c) =>
+          const orcamentos = s.orcamentos.map((c) =>
             c.id === id
               ? {
                   ...c,
                   ...data,
-                  ultimaInteracao: now,
-                  historico: [...c.historico, { data: now, texto: 'Dados atualizados' }],
+                  ultimoContatoEm: now,
+                  atualizadoEm: now,
+                  atualizadoPor: userId,
+                  historico: [...c.historico, { data: now, texto: 'Dados atualizados', usuarioId: userId }],
                 }
               : c
           )
-          return { clientes, clientesFiltrados: computeFiltered(clientes) }
+          return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
         })
       },
 
-      moveCliente: (id, coluna, tipoObjecao, observacaoObjecao) => {
+      moveOrcamento: (id, coluna, tipoObjecao, observacaoObjecao) => {
         const now = nowISO()
-        const COLUNA_LABELS: Record<Coluna, string> = {
-          lead: 'Lead', qualificacao: 'Qualificação', orcamento: 'Orçamento Enviado',
-          negociacao: 'Negociação', objecao: 'Objeção', aguardando: 'Aguardando',
-          perdido: 'Perdido', vendido: 'Vendido',
-        }
+        const userId = useAuthStore.getState().user?.id ?? 'admin'
         set((s) => {
-          const clientes = s.clientes.map((c) => {
+          const orcamentos = s.orcamentos.map((c) => {
             if (c.id !== id) return c
             return {
               ...c,
               coluna,
-              ultimaInteracao: now,
+              ultimoContatoEm: now,
+              atualizadoEm: now,
+              atualizadoPor: userId,
               ...(tipoObjecao ? { tipoObjecao, observacaoObjecao } : {}),
-              historico: [...c.historico, { data: now, texto: `Movido para: ${COLUNA_LABELS[coluna]}` }],
+              ...(coluna === 'vendido' ? { vendidoEm: now } : {}),
+              ...(coluna === 'perdido' ? { dataPerda: now } : {}),
+              historico: [...c.historico, { data: now, texto: `Movido para: ${COLUNA_LABELS[coluna]}`, usuarioId: userId }],
             }
           })
-          return { clientes, clientesFiltrados: computeFiltered(clientes), pendingMove: null }
+          return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos), pendingMove: null }
         })
       },
 
-      deleteCliente: (id) =>
+      deleteOrcamento: (id) =>
         set((s) => {
-          const clientes = s.clientes.filter((c) => c.id !== id)
-          return { clientes, clientesFiltrados: computeFiltered(clientes) }
+          const orcamentos = s.orcamentos.filter((c) => c.id !== id)
+          return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
         }),
 
       refreshFiltrados: () =>
-        set((s) => ({ clientesFiltrados: computeFiltered(s.clientes) })),
+        set((s) => ({ orcamentosFiltrados: computeFiltered(s.orcamentos) })),
 
       setModalCriar: (open) => set({ modalCriar: open }),
-      setModalEditar: (cliente) => set({ modalEditar: cliente }),
+      setModalEditar: (orcamento) => set({ modalEditar: orcamento }),
       setPendingMove: (move) => set({ pendingMove: move }),
     }),
     {
       name: 'kaue-crm',
-      version: 4,
+      version: 5,
       migrate: (persistedState: any, version: number) => {
-        if (version === 3) {
-          const clientes = (persistedState.clientes ?? []).map((c: any) => ({
-            ...c,
+        if (version === 4) {
+          const orcamentos = (persistedState.clientes ?? []).map((c: any) => ({
+            id: c.id,
             ownerId: c.ownerId ?? 'admin',
+            nome: c.nome,
+            responsavelId: c.ownerId ?? 'admin',
+            valor: c.valorEstimado,
+            coluna: c.coluna === 'orcamento' ? 'orcamento_enviado' : c.coluna,
+            origem: c.origem ? mapLegacyOrigem(c.origem) : undefined,
+            contatosIds: [],
+            orcamentoEnviadoEm: c.dataEnvioOrcamento,
+            ultimoContatoEm: c.ultimaInteracao,
+            tipoObjecao: c.tipoObjecao,
+            observacaoObjecao: c.observacaoObjecao,
+            historico: (c.historico ?? []).map((h: any) => ({
+              ...h,
+              usuarioId: c.ownerId ?? 'admin',
+            })),
+            criadoEm: c.criadoEm,
+            criadoPor: c.ownerId ?? 'admin',
+            atualizadoEm: c.ultimaInteracao ?? c.criadoEm,
+            atualizadoPor: c.ownerId ?? 'admin',
           }))
-          return { ...persistedState, clientes }
+          return { ...persistedState, clientes: undefined, orcamentos }
         }
-        return { clientes: sampleData, modalCriar: false, modalEditar: null, pendingMove: null }
+        return { orcamentos: sampleData, modalCriar: false, modalEditar: null, pendingMove: null }
       },
       onRehydrateStorage: () => (state) => {
         if (state) state.refreshFiltrados()
       },
       partialize: (s) => ({
-        clientes: s.clientes,
+        orcamentos: s.orcamentos,
         modalCriar: s.modalCriar,
         modalEditar: s.modalEditar,
         pendingMove: s.pendingMove,
@@ -137,7 +173,6 @@ export const useStore = create<Store>()(
   )
 )
 
-// Mantém clientesFiltrados sincronizado quando o usuário faz login/logout
 useAuthStore.subscribe(() => {
   useStore.getState().refreshFiltrados()
 })

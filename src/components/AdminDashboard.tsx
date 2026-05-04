@@ -8,18 +8,19 @@ const EMPLOYEES = [
 ]
 
 export function AdminDashboard() {
-  const clientes = useStore((s) => s.clientes)
+  const orcamentos = useStore((s) => s.orcamentos)
 
   const stats = useMemo(() =>
     EMPLOYEES.map(({ id, name }) => {
-      const proprios = clientes.filter((c) => (c.ownerId ?? 'admin') === id)
-      const ativos   = proprios.filter((c) => c.coluna !== 'perdido' && c.coluna !== 'vendido')
-      const orcamento = proprios.filter((c) => c.coluna === 'orcamento')
-      const vendido  = proprios.filter((c) => c.coluna === 'vendido')
-      const perdido  = proprios.filter((c) => c.coluna === 'perdido')
+      const proprios    = orcamentos.filter((c) => (c.ownerId ?? 'admin') === id)
+      const terminal    = ['perdido', 'vendido', 'sucesso', 'lixo', 'sac']
+      const ativos      = proprios.filter((c) => !terminal.includes(c.coluna))
+      const emOrcamento = proprios.filter((c) => c.coluna === 'orcamento_enviado')
+      const vendido     = proprios.filter((c) => c.coluna === 'vendido' || c.coluna === 'sucesso')
+      const perdido     = proprios.filter((c) => c.coluna === 'perdido' || c.coluna === 'lixo')
 
-      const totalOrcamento = orcamento.reduce((s, c) => s + (c.valorEstimado ?? 0), 0)
-      const totalVendido   = vendido.reduce((s, c) => s + (c.valorEstimado ?? 0), 0)
+      const totalOrcamento = emOrcamento.reduce((s, c) => s + (c.valor ?? 0), 0)
+      const totalVendido   = vendido.reduce((s, c) => s + (c.valor ?? 0), 0)
 
       const totalFinalizados = vendido.length + perdido.length
       const conversao = totalFinalizados > 0
@@ -28,7 +29,7 @@ export function AdminDashboard() {
 
       return { name, ativos: ativos.length, totalOrcamento, totalVendido, conversao }
     }),
-  [clientes])
+  [orcamentos])
 
   return (
     <div className="px-4 pt-3 pb-1">

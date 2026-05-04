@@ -4,8 +4,8 @@ import { COLUNAS, Coluna } from '../types'
 import { Column } from './Column'
 
 export function Board() {
-  const clientes = useStore((s) => s.clientesFiltrados)
-  const moveCliente = useStore((s) => s.moveCliente)
+  const orcamentos = useStore((s) => s.orcamentosFiltrados)
+  const moveOrcamento = useStore((s) => s.moveOrcamento)
   const setPendingMove = useStore((s) => s.setPendingMove)
 
   const handleDragEnd = (result: DropResult) => {
@@ -16,10 +16,10 @@ export function Board() {
     const destColuna = destination.droppableId as Coluna
 
     if (destColuna === 'objecao') {
-      const cliente = clientes.find((c) => c.id === draggableId)
-      if (cliente) setPendingMove({ clienteId: draggableId, colunaDestino: destColuna })
+      const orcamento = orcamentos.find((c) => c.id === draggableId)
+      if (orcamento) setPendingMove({ orcamentoId: draggableId, colunaDestino: destColuna })
     } else {
-      moveCliente(draggableId, destColuna)
+      moveOrcamento(draggableId, destColuna)
     }
   }
 
@@ -27,8 +27,8 @@ export function Board() {
     <DragDropContext onDragEnd={handleDragEnd}>
       <div className="flex gap-4 px-4 pb-6 overflow-x-auto min-h-0">
         {COLUNAS.map((config) => {
-          const cards = clientes.filter((c) => c.coluna === config.id)
-          return <Column key={config.id} config={config} clientes={cards} />
+          const cards = orcamentos.filter((c) => c.coluna === config.id)
+          return <Column key={config.id} config={config} orcamentos={cards} />
         })}
       </div>
     </DragDropContext>

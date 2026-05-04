@@ -53,7 +53,7 @@ export default function App() {
       <Footer />
 
       {modalCriar  && <CreateModal />}
-      {modalEditar && <EditModal cliente={modalEditar} />}
+      {modalEditar && <EditModal orcamento={modalEditar} />}
       {pendingMove && <ObjecaoModal />}
     </div>
   )

@@ -6,8 +6,8 @@ import { ModalShell } from './CreateModal'
 
 export function ObjecaoModal() {
   const pendingMove = useStore((s) => s.pendingMove)
-  const clientes = useStore((s) => s.clientes)
-  const moveCliente = useStore((s) => s.moveCliente)
+  const orcamentos = useStore((s) => s.orcamentos)
+  const moveOrcamento = useStore((s) => s.moveOrcamento)
   const setPendingMove = useStore((s) => s.setPendingMove)
 
   const [tipo, setTipo] = useState<TipoObjecao>('preco')
@@ -15,11 +15,11 @@ export function ObjecaoModal() {
 
   if (!pendingMove) return null
 
-  const cliente = clientes.find((c) => c.id === pendingMove.clienteId)
-  if (!cliente) return null
+  const orcamento = orcamentos.find((c) => c.id === pendingMove.orcamentoId)
+  if (!orcamento) return null
 
   const handleConfirm = () => {
-    moveCliente(pendingMove.clienteId, pendingMove.colunaDestino, tipo, observacao || undefined)
+    moveOrcamento(pendingMove.orcamentoId, pendingMove.colunaDestino, tipo, observacao || undefined)
     toast('Objeção registrada', { icon: '⚠️' })
     setTipo('preco')
     setObservacao('')
@@ -36,7 +36,7 @@ export function ObjecaoModal() {
       <div className="space-y-4">
         <p className="text-slate-300 text-sm">
           Qual é a objeção de{' '}
-          <span className="text-white font-semibold">{cliente.nome}</span>?
+          <span className="text-white font-semibold">{orcamento.nome}</span>?
         </p>
 
         <div className="space-y-2">

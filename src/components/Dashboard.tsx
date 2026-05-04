@@ -3,26 +3,27 @@ import { useStore } from '../store/useStore'
 import { formatCurrency, diasDesde } from '../utils'
 
 export function Dashboard() {
-  const clientes = useStore((s) => s.clientesFiltrados)
+  const orcamentos = useStore((s) => s.orcamentosFiltrados)
 
   const stats = useMemo(() => {
-    const ativos   = clientes.filter((c) => c.coluna !== 'perdido' && c.coluna !== 'vendido')
-    const orcamento = clientes.filter((c) => c.coluna === 'orcamento')
-    const vendido  = clientes.filter((c) => c.coluna === 'vendido')
-    const perdido  = clientes.filter((c) => c.coluna === 'perdido')
+    const terminal = ['perdido', 'vendido', 'sucesso', 'lixo', 'sac']
+    const ativos    = orcamentos.filter((c) => !terminal.includes(c.coluna))
+    const emOrcamento = orcamentos.filter((c) => c.coluna === 'orcamento_enviado')
+    const vendido   = orcamentos.filter((c) => c.coluna === 'vendido' || c.coluna === 'sucesso')
+    const perdido   = orcamentos.filter((c) => c.coluna === 'perdido' || c.coluna === 'lixo')
 
-    const totalOrcamento = orcamento.reduce((s, c) => s + (c.valorEstimado ?? 0), 0)
-    const totalVendido   = vendido.reduce((s, c) => s + (c.valorEstimado ?? 0), 0)
+    const totalOrcamento = emOrcamento.reduce((s, c) => s + (c.valor ?? 0), 0)
+    const totalVendido   = vendido.reduce((s, c) => s + (c.valor ?? 0), 0)
 
     const totalFinalizados = vendido.length + perdido.length
     const conversao = totalFinalizados > 0 ? Math.round((vendido.length / totalFinalizados) * 100) : 0
 
-    const semInteracao = clientes.filter(
-      (c) => c.coluna !== 'perdido' && c.coluna !== 'vendido' && diasDesde(c.ultimaInteracao) > 7
+    const semInteracao = orcamentos.filter(
+      (c) => !terminal.includes(c.coluna) && diasDesde(c.ultimoContatoEm ?? c.criadoEm) > 7
     ).length
 
     return { ativos: ativos.length, totalOrcamento, totalVendido, conversao, semInteracao }
-  }, [clientes])
+  }, [orcamentos])
 
   return (
     <div className="px-4 py-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
