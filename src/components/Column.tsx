@@ -2,36 +2,23 @@ import { Droppable } from '@hello-pangea/dnd'
 import { ColunaConfig, Orcamento } from '../types'
 import { formatCurrency } from '../utils'
 import { Card } from './Card'
-import { useStore } from '../store/useStore'
+import { useOrcamentoStore } from '../store/useOrcamentoStore'
 
 interface ColumnProps {
   config: ColunaConfig
   orcamentos: Orcamento[]
 }
 
-const HEADER_COLORS: Record<string, string> = {
-  lead:              'border-slate-400',
-  qualificacao:      'border-blue-400',
-  orcamento_enviado: 'border-amber-400',
-  negociacao:        'border-cyan-400',
-  objecao:           'border-orange-400',
-  aguardando:        'border-purple-400',
-  perdido:           'border-red-500',
-  vendido:           'border-green-500',
-  sucesso:           'border-teal-400',
-  lixo:              'border-slate-600',
-  sac:               'border-violet-400',
-}
+const NO_ADD = new Set(['perdido', 'vendido', 'sucesso', 'aguardando', 'lixo'])
 
 export function Column({ config, orcamentos }: ColumnProps) {
-  const setModalCriar = useStore((s) => s.setModalCriar)
+  const setModalCriar = useOrcamentoStore((s) => s.setModalCriar)
   const total = orcamentos.reduce((s, c) => s + (c.valor ?? 0), 0)
-  const noAddBtn = ['perdido', 'vendido', 'aguardando', 'sucesso', 'lixo', 'sac'].includes(config.id)
+  const noAddBtn = NO_ADD.has(config.id)
 
   return (
     <div className="flex flex-col w-72 flex-shrink-0">
-      {/* Header */}
-      <div className={`bg-card rounded-xl border border-slate-700 border-t-2 ${HEADER_COLORS[config.id]} p-3 mb-2`}>
+      <div className={`bg-card rounded-xl border border-slate-700 border-t-2 ${config.borderColor} p-3 mb-2`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-base">{config.emoji}</span>
@@ -57,7 +44,6 @@ export function Column({ config, orcamentos }: ColumnProps) {
         )}
       </div>
 
-      {/* Cards */}
       <Droppable droppableId={config.id}>
         {(provided, snapshot) => (
           <div

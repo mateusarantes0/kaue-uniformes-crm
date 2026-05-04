@@ -1,26 +1,34 @@
 import { useState } from 'react'
 import toast from 'react-hot-toast'
-import { useStore } from '../../store/useStore'
+import { useOrcamentoStore } from '../../store/useOrcamentoStore'
 import { TipoObjecao, TIPO_OBJECAO_LABELS } from '../../types'
 import { ModalShell } from './CreateModal'
 
 export function ObjecaoModal() {
-  const pendingMove = useStore((s) => s.pendingMove)
-  const orcamentos = useStore((s) => s.orcamentos)
-  const moveOrcamento = useStore((s) => s.moveOrcamento)
-  const setPendingMove = useStore((s) => s.setPendingMove)
+  const pendingMove = useOrcamentoStore((s) => s.pendingMove)
+  const orcamentos = useOrcamentoStore((s) => s.orcamentos)
+  const moveOrcamento = useOrcamentoStore((s) => s.moveOrcamento)
+  const marcarComoPerdida = useOrcamentoStore((s) => s.marcarComoPerdida)
+  const setPendingMove = useOrcamentoStore((s) => s.setPendingMove)
 
   const [tipo, setTipo] = useState<TipoObjecao>('preco')
   const [observacao, setObservacao] = useState('')
 
   if (!pendingMove) return null
 
-  const orcamento = orcamentos.find((c) => c.id === pendingMove.orcamentoId)
+  const orcamento = orcamentos.find((o) => o.id === pendingMove.orcamentoId)
   if (!orcamento) return null
 
+  const isPerdido = pendingMove.motivo === 'perdido'
+
   const handleConfirm = () => {
-    moveOrcamento(pendingMove.orcamentoId, pendingMove.colunaDestino, tipo, observacao || undefined)
-    toast('Objeção registrada', { icon: '⚠️' })
+    if (isPerdido) {
+      marcarComoPerdida(pendingMove.orcamentoId, tipo, observacao || undefined)
+      toast('Marcado como Perdido', { icon: '😢' })
+    } else {
+      moveOrcamento(pendingMove.orcamentoId, 'objecao', tipo, observacao || undefined)
+      toast('Objeção registrada', { icon: '⚠️' })
+    }
     setTipo('preco')
     setObservacao('')
   }
@@ -32,11 +40,12 @@ export function ObjecaoModal() {
   }
 
   return (
-    <ModalShell title="Tipo de Objeção" onClose={handleCancel}>
+    <ModalShell title={isPerdido ? 'Motivo da Perda' : 'Tipo de Objeção'} onClose={handleCancel}>
       <div className="space-y-4">
         <p className="text-slate-300 text-sm">
-          Qual é a objeção de{' '}
-          <span className="text-white font-semibold">{orcamento.nome}</span>?
+          {isPerdido ? 'Por que o orçamento ' : 'Qual é a objeção de '}
+          <span className="text-white font-semibold">{orcamento.nome}</span>
+          {isPerdido ? ' foi perdido?' : '?'}
         </p>
 
         <div className="space-y-2">
@@ -69,7 +78,7 @@ export function ObjecaoModal() {
             rows={2}
             value={observacao}
             onChange={(e) => setObservacao(e.target.value)}
-            placeholder="Detalhe a objeção do cliente..."
+            placeholder={isPerdido ? 'Detalhe o motivo da perda...' : 'Detalhe a objeção...'}
           />
         </div>
 
@@ -77,9 +86,9 @@ export function ObjecaoModal() {
           <button onClick={handleCancel} className="btn-ghost">Cancelar</button>
           <button
             onClick={handleConfirm}
-            className="bg-amber-600 hover:bg-amber-500 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
+            className={`${isPerdido ? 'bg-red-700 hover:bg-red-600' : 'bg-amber-600 hover:bg-amber-500'} text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors`}
           >
-            Registrar Objeção
+            {isPerdido ? '😢 Confirmar Perda' : '⚠️ Registrar Objeção'}
           </button>
         </div>
       </div>

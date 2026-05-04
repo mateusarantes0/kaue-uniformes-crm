@@ -1,12 +1,13 @@
 import { DragDropContext, DropResult } from '@hello-pangea/dnd'
-import { useStore } from '../store/useStore'
+import { useOrcamentoStore } from '../store/useOrcamentoStore'
 import { COLUNAS, Coluna } from '../types'
 import { Column } from './Column'
 
 export function Board() {
-  const orcamentos = useStore((s) => s.orcamentosFiltrados)
-  const moveOrcamento = useStore((s) => s.moveOrcamento)
-  const setPendingMove = useStore((s) => s.setPendingMove)
+  const orcamentos = useOrcamentoStore((s) => s.orcamentosFiltrados)
+  const moveOrcamento = useOrcamentoStore((s) => s.moveOrcamento)
+  const marcarComoGanha = useOrcamentoStore((s) => s.marcarComoGanha)
+  const setPendingMove = useOrcamentoStore((s) => s.setPendingMove)
 
   const handleDragEnd = (result: DropResult) => {
     const { draggableId, destination, source } = result
@@ -16,8 +17,11 @@ export function Board() {
     const destColuna = destination.droppableId as Coluna
 
     if (destColuna === 'objecao') {
-      const orcamento = orcamentos.find((c) => c.id === draggableId)
-      if (orcamento) setPendingMove({ orcamentoId: draggableId, colunaDestino: destColuna })
+      setPendingMove({ orcamentoId: draggableId, colunaDestino: 'objecao', motivo: 'objecao' })
+    } else if (destColuna === 'perdido') {
+      setPendingMove({ orcamentoId: draggableId, colunaDestino: 'perdido', motivo: 'perdido' })
+    } else if (destColuna === 'vendido') {
+      marcarComoGanha(draggableId)
     } else {
       moveOrcamento(draggableId, destColuna)
     }

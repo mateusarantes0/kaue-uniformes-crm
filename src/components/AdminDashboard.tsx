@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useStore } from '../store/useStore'
+import { useOrcamentoStore } from '../store/useOrcamentoStore'
 import { formatCurrency } from '../utils'
 
 const EMPLOYEES = [
@@ -8,19 +8,19 @@ const EMPLOYEES = [
 ]
 
 export function AdminDashboard() {
-  const orcamentos = useStore((s) => s.orcamentos)
+  const orcamentos = useOrcamentoStore((s) => s.orcamentos)
 
   const stats = useMemo(() =>
     EMPLOYEES.map(({ id, name }) => {
-      const proprios    = orcamentos.filter((c) => (c.ownerId ?? 'admin') === id)
-      const terminal    = ['perdido', 'vendido', 'sucesso', 'lixo', 'sac']
-      const ativos      = proprios.filter((c) => !terminal.includes(c.coluna))
-      const emOrcamento = proprios.filter((c) => c.coluna === 'orcamento_enviado')
-      const vendido     = proprios.filter((c) => c.coluna === 'vendido' || c.coluna === 'sucesso')
-      const perdido     = proprios.filter((c) => c.coluna === 'perdido' || c.coluna === 'lixo')
+      const proprios    = orcamentos.filter((o) => (o.ownerId ?? 'admin') === id)
+      const terminal    = new Set(['perdido', 'vendido', 'sucesso', 'lixo'])
+      const ativos      = proprios.filter((o) => !terminal.has(o.coluna))
+      const emOrcamento = proprios.filter((o) => o.coluna === 'orcamento_enviado')
+      const vendido     = proprios.filter((o) => o.coluna === 'vendido' || o.coluna === 'sucesso')
+      const perdido     = proprios.filter((o) => o.coluna === 'perdido' || o.coluna === 'lixo')
 
-      const totalOrcamento = emOrcamento.reduce((s, c) => s + (c.valor ?? 0), 0)
-      const totalVendido   = vendido.reduce((s, c) => s + (c.valor ?? 0), 0)
+      const totalOrcamento = emOrcamento.reduce((s, o) => s + (o.valor ?? 0), 0)
+      const totalVendido   = vendido.reduce((s, o) => s + (o.valor ?? 0), 0)
 
       const totalFinalizados = vendido.length + perdido.length
       const conversao = totalFinalizados > 0
@@ -41,10 +41,10 @@ export function AdminDashboard() {
           <div key={s.name} className="bg-card border border-slate-700 rounded-xl p-4">
             <p className="text-sm font-semibold text-white mb-3">{s.name}</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <Metric label="Leads Ativos"   value={String(s.ativos)}              icon="👤" />
-              <Metric label="Em Orçamento"   value={formatCurrency(s.totalOrcamento)} icon="💼" />
-              <Metric label="Vendido"        value={formatCurrency(s.totalVendido)}   icon="✅" accent />
-              <Metric label="Conversão"      value={`${s.conversao}%`}              icon="📈" />
+              <Metric label="Ativos"       value={String(s.ativos)}              icon="👤" />
+              <Metric label="Orçamento"    value={formatCurrency(s.totalOrcamento)} icon="💼" />
+              <Metric label="Vendido"      value={formatCurrency(s.totalVendido)}   icon="✅" accent />
+              <Metric label="Conversão"    value={`${s.conversao}%`}              icon="📈" />
             </div>
           </div>
         ))}
@@ -53,12 +53,7 @@ export function AdminDashboard() {
   )
 }
 
-interface MetricProps {
-  label: string
-  value: string
-  icon: string
-  accent?: boolean
-}
+interface MetricProps { label: string; value: string; icon: string; accent?: boolean }
 
 function Metric({ label, value, icon, accent }: MetricProps) {
   return (
