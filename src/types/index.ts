@@ -109,7 +109,7 @@ export interface Pessoa {
   nome: string
   responsaveisIds: string[]
   telefone?: string
-  empresaId?: string
+  empresasIds: string[]
   tipoContato?: TipoContato
   cargo?: Cargo
   grauInfluencia?: GrauInfluencia

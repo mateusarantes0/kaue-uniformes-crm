@@ -1,12 +1,16 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { useOrcamentoStore } from '../../store/useOrcamentoStore'
 import { useEmpresaStore } from '../../store/useEmpresaStore'
 import { usePessoaStore } from '../../store/usePessoaStore'
 import {
-  Orcamento, Coluna, Origem, Campanha, COLUNAS, ORIGEM_LABELS, CAMPANHA_LABELS,
+  Orcamento, Coluna, Origem, Campanha, COLUNAS, ORIGEM_LABELS, CAMPANHA_LABELS, CARGO_LABELS,
+  Empresa, Pessoa,
 } from '../../types'
 import { ModalShell, Field } from './CreateModal'
+import { stripMask } from '../../utils'
+import { SearchableMultiSelect } from '../ui/SearchableMultiSelect'
+import { CurrencyInput } from '../ui/CurrencyInput'
 
 const USERS = [
   { id: 'admin', name: 'Admin' },
@@ -15,69 +19,6 @@ const USERS = [
 ]
 
 const COLUNA_OPTIONS: Coluna[] = ['lead', 'qualificacao', 'orcamento_enviado', 'negociacao', 'aguardando']
-
-function Combobox({
-  value,
-  options,
-  onChange,
-  placeholder,
-}: {
-  value: string
-  options: { value: string; label: string }[]
-  onChange: (v: string) => void
-  placeholder?: string
-}) {
-  const [search, setSearch] = useState('')
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  const selected = options.find((o) => o.value === value)
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
-  const filtered = options.filter((o) =>
-    o.label.toLowerCase().includes(search.toLowerCase())
-  )
-
-  return (
-    <div ref={ref} className="relative">
-      <input
-        className="input"
-        value={open ? search : (selected?.label ?? '')}
-        onChange={(e) => { setSearch(e.target.value); setOpen(true) }}
-        onFocus={() => { setSearch(''); setOpen(true) }}
-        placeholder={placeholder ?? 'Selecionar...'}
-      />
-      {open && (
-        <div className="absolute z-50 w-full bg-[#1E293B] border border-slate-600 rounded-lg mt-1 max-h-44 overflow-y-auto shadow-xl">
-          <div
-            className="px-3 py-2 text-xs text-slate-500 hover:bg-slate-700 cursor-pointer"
-            onMouseDown={() => { onChange(''); setOpen(false); setSearch('') }}
-          >
-            — Nenhum —
-          </div>
-          {filtered.map((o) => (
-            <div
-              key={o.value}
-              className={`px-3 py-2 text-sm cursor-pointer hover:bg-slate-700 ${value === o.value ? 'text-accent' : 'text-slate-200'}`}
-              onMouseDown={() => { onChange(o.value); setOpen(false); setSearch('') }}
-            >
-              {o.label}
-            </div>
-          ))}
-          {filtered.length === 0 && (
-            <div className="px-3 py-2 text-xs text-slate-500">Nenhum resultado</div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
 
 function MultiCheckList({
   values,
@@ -131,6 +72,60 @@ function MultiCheckList({
   )
 }
 
+const WA_ICON = (
+  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+  </svg>
+)
+
+function EmpresaChip({ empresa, onRemove, onOpen }: { empresa: Empresa; onRemove: () => void; onOpen: () => void }) {
+  return (
+    <div className="flex items-center gap-2 bg-slate-700 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white">
+      <button type="button" onClick={onOpen} className="text-accent hover:underline font-medium">
+        {empresa.nome}
+      </button>
+      <button type="button" onClick={onRemove} className="text-slate-400 hover:text-red-400 transition-colors">
+        ×
+      </button>
+    </div>
+  )
+}
+
+function PessoaChip({ pessoa, onRemove }: { pessoa: Pessoa; onRemove: () => void }) {
+  return (
+    <div className="w-full bg-slate-800/80 border border-slate-700 rounded-lg px-3 py-2">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-sm text-white font-medium truncate">{pessoa.nome}</p>
+          {pessoa.cargo && (
+            <p className="text-xs text-slate-400">{CARGO_LABELS[pessoa.cargo]}</p>
+          )}
+          {pessoa.telefone && (
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs text-slate-400 font-mono">{pessoa.telefone}</span>
+              <button
+                type="button"
+                onClick={() => window.open(`https://wa.me/55${stripMask(pessoa.telefone!)}`, '_blank')}
+                title="WhatsApp"
+                className="text-green-400 hover:text-green-300 transition-colors"
+              >
+                {WA_ICON}
+              </button>
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="text-slate-400 hover:text-red-400 transition-colors flex-shrink-0 mt-0.5"
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export function OrcamentoModal() {
   const modalCriar = useOrcamentoStore((s) => s.modalCriar)
   const modalEditar = useOrcamentoStore((s) => s.modalEditar)
@@ -143,6 +138,7 @@ export function OrcamentoModal() {
 
   const empresas = useEmpresaStore((s) => s.empresas)
   const addEmpresa = useEmpresaStore((s) => s.addEmpresa)
+  const setEmpresaModalEditar = useEmpresaStore((s) => s.setModalEditar)
   const pessoas = usePessoaStore((s) => s.pessoas)
   const addPessoa = usePessoaStore((s) => s.addPessoa)
 
@@ -160,7 +156,7 @@ export function OrcamentoModal() {
   const [origem, setOrigem] = useState<Origem | ''>(o?.origem ?? '')
 
   // Tab 2
-  const [valor, setValor] = useState(o?.valor?.toString() ?? '')
+  const [valor, setValor] = useState<number | undefined>(o?.valor)
   const [probabilidade, setProbabilidade] = useState(o?.probabilidade?.toString() ?? '')
   const [ultimoContatoEm, setUltimoContatoEm] = useState(o?.ultimoContatoEm?.split('T')[0] ?? '')
   const [orcamentoEnviadoEm, setOrcamentoEnviadoEm] = useState(o?.orcamentoEnviadoEm ?? '')
@@ -198,7 +194,7 @@ export function OrcamentoModal() {
       contatosIds,
       coluna,
       origem: (origem as Origem) || undefined,
-      valor: valor ? Number(valor) : undefined,
+      valor,
       probabilidade: probabilidade ? Number(probabilidade) : undefined,
       ultimoContatoEm: ultimoContatoEm || undefined,
       orcamentoEnviadoEm: orcamentoEnviadoEm || undefined,
@@ -244,15 +240,14 @@ export function OrcamentoModal() {
 
   const handleQuickPessoa = () => {
     if (!quickPessoaNome.trim()) return
-    const nova = addPessoa({ nome: quickPessoaNome.trim(), responsaveisIds: [] })
+    const nova = addPessoa({ nome: quickPessoaNome.trim(), responsaveisIds: [], empresasIds: [] })
     setContatosIds((prev) => [...prev, nova.id])
     setQuickPessoaNome('')
     setShowQuickPessoa(false)
     toast.success(`Pessoa "${nova.nome}" criada!`)
   }
 
-  const empresaOptions = empresas.map((e) => ({ value: e.id, label: e.nome }))
-  const pessoaOptions = pessoas.map((p) => ({ value: p.id, label: p.nome }))
+  const empresaSelecionada = empresaId ? empresas.find((e) => e.id === empresaId) : undefined
   const origemOptions = (Object.entries(ORIGEM_LABELS) as [Origem, string][]).map(([v, l]) => ({ value: v, label: l }))
   const campanhaOptions = (Object.entries(CAMPANHA_LABELS) as [Campanha, string][]).map(([v, l]) => ({ value: v, label: l }))
   const showFechouPela = coluna === 'vendido' || coluna === 'sucesso'
@@ -297,49 +292,59 @@ export function OrcamentoModal() {
 
           {/* Empresa */}
           <Field label="Empresa">
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <Combobox value={empresaId} options={empresaOptions} onChange={setEmpresaId} placeholder="Selecionar empresa..." />
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowQuickEmpresa(!showQuickEmpresa)}
-                title="Nova Empresa"
-                className="text-slate-400 hover:text-accent px-2 border border-slate-700 rounded-lg text-sm transition-colors"
-              >
-                +
-              </button>
-            </div>
-            {showQuickEmpresa && (
-              <div className="mt-2 flex gap-2">
-                <input
-                  className="input flex-1 text-xs"
-                  placeholder="Nome da nova empresa"
-                  value={quickEmpresaNome}
-                  onChange={(e) => setQuickEmpresaNome(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleQuickEmpresa()}
-                  autoFocus
+            {empresaSelecionada ? (
+              <EmpresaChip
+                empresa={empresaSelecionada}
+                onRemove={() => setEmpresaId('')}
+                onOpen={() => { close(); setEmpresaModalEditar(empresaSelecionada) }}
+              />
+            ) : (
+              <div className="space-y-2">
+                <SearchableMultiSelect
+                  items={empresas}
+                  selectedIds={empresaId ? [empresaId] : []}
+                  onChange={(ids) => setEmpresaId(ids[0] ?? '')}
+                  getId={(e) => e.id}
+                  getLabel={(e) => e.nome}
+                  placeholder="Buscar empresa..."
+                  single
+                  onCreateNew={() => setShowQuickEmpresa(!showQuickEmpresa)}
                 />
-                <button onClick={handleQuickEmpresa} className="btn-primary text-xs px-3">Criar</button>
-                <button onClick={() => setShowQuickEmpresa(false)} className="btn-ghost text-xs">×</button>
+                {showQuickEmpresa && (
+                  <div className="flex gap-2">
+                    <input
+                      className="input flex-1 text-xs"
+                      placeholder="Nome da nova empresa"
+                      value={quickEmpresaNome}
+                      onChange={(e) => setQuickEmpresaNome(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleQuickEmpresa()}
+                      autoFocus
+                    />
+                    <button onClick={handleQuickEmpresa} className="btn-primary text-xs px-3">Criar</button>
+                    <button onClick={() => setShowQuickEmpresa(false)} className="btn-ghost text-xs">×</button>
+                  </div>
+                )}
               </div>
             )}
           </Field>
 
           {/* Contatos */}
           <Field label="Contatos">
-            <div className="flex gap-2 mb-2">
-              <span className="text-xs text-slate-400 flex-1">{contatosIds.length} selecionado(s)</span>
-              <button
-                type="button"
-                onClick={() => setShowQuickPessoa(!showQuickPessoa)}
-                className="text-slate-400 hover:text-accent text-xs transition-colors"
-              >
-                + Nova Pessoa
-              </button>
-            </div>
+            <SearchableMultiSelect
+              items={pessoas}
+              selectedIds={contatosIds}
+              onChange={setContatosIds}
+              getId={(p) => p.id}
+              getLabel={(p) => p.nome}
+              getSubLabel={(p) => p.cargo ? CARGO_LABELS[p.cargo] : p.telefone ?? ''}
+              placeholder="Buscar contato..."
+              onCreateNew={() => setShowQuickPessoa(!showQuickPessoa)}
+              renderChip={(pessoa, onRemove) => (
+                <PessoaChip key={pessoa.id} pessoa={pessoa} onRemove={onRemove} />
+              )}
+            />
             {showQuickPessoa && (
-              <div className="mb-2 flex gap-2">
+              <div className="mt-2 flex gap-2">
                 <input
                   className="input flex-1 text-xs"
                   placeholder="Nome da nova pessoa"
@@ -352,16 +357,19 @@ export function OrcamentoModal() {
                 <button onClick={() => setShowQuickPessoa(false)} className="btn-ghost text-xs">×</button>
               </div>
             )}
-            <MultiCheckList
-              values={contatosIds}
-              options={pessoaOptions}
-              onChange={setContatosIds}
-              searchable
-            />
           </Field>
 
           <Field label="Origem">
-            <Combobox value={origem} options={origemOptions} onChange={(v) => setOrigem(v as Origem | '')} placeholder="Selecionar origem..." />
+            <select
+              className="input"
+              value={origem}
+              onChange={(e) => setOrigem(e.target.value as Origem | '')}
+            >
+              <option value="">— Selecionar —</option>
+              {origemOptions.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
           </Field>
         </div>
       )}
@@ -371,7 +379,7 @@ export function OrcamentoModal() {
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <Field label="Valor (R$)">
-              <input className="input" type="number" min="0" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0,00" />
+              <CurrencyInput value={valor} onChange={setValor} />
             </Field>
             <Field label="Probabilidade (%)">
               <input className="input" type="number" min="0" max="100" value={probabilidade} onChange={(e) => setProbabilidade(e.target.value)} placeholder="0–100" />

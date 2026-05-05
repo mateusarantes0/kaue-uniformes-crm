@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { useEmpresaStore } from '../../store/useEmpresaStore'
+import { usePessoaStore } from '../../store/usePessoaStore'
+import { useOrcamentoStore } from '../../store/useOrcamentoStore'
 import {
   Empresa, Segmento, TipoCliente, GrupoEstrategico, Frequencia, StatusCliente, PorteEmpresa, UF, UFS,
   SEGMENTO_LABELS, TIPO_CLIENTE_LABELS, GRUPO_ESTRATEGICO_LABELS, FREQUENCIA_LABELS,
-  STATUS_CLIENTE_LABELS, PORTE_EMPRESA_LABELS,
+  STATUS_CLIENTE_LABELS, PORTE_EMPRESA_LABELS, CARGO_LABELS, COLUNA_LABELS,
 } from '../../types'
 import { ModalShell, Field, Section } from './CreateModal'
+import { formatCurrency } from '../../utils'
 
 const USERS = [
   { id: 'admin', name: 'Admin' },
@@ -23,6 +26,10 @@ interface Props {
 export function EmpresaModal({ empresa, onClose, onCreated }: Props) {
   const addEmpresa = useEmpresaStore((s) => s.addEmpresa)
   const updateEmpresa = useEmpresaStore((s) => s.updateEmpresa)
+  const pessoas = usePessoaStore((s) => s.pessoas)
+  const setPessoaModalEditar = usePessoaStore((s) => s.setModalEditar)
+  const orcamentos = useOrcamentoStore((s) => s.orcamentos)
+  const setOrcDetalheId = useOrcamentoStore((s) => s.setModalDetalheId)
   const isEdit = !!empresa
   const e = empresa
 
@@ -83,6 +90,14 @@ export function EmpresaModal({ empresa, onClose, onCreated }: Props) {
     }
   }
 
+  const contatosVinculados = isEdit && e
+    ? pessoas.filter((p) => (p.empresasIds ?? []).includes(e.id))
+    : []
+
+  const orcamentosVinculados = isEdit && e
+    ? orcamentos.filter((o) => o.empresaId === e.id)
+    : []
+
   return (
     <ModalShell title={isEdit ? `Editar: ${e?.nome}` : 'Nova Empresa'} onClose={onClose} wide>
       <div className="space-y-3">
@@ -113,6 +128,61 @@ export function EmpresaModal({ empresa, onClose, onCreated }: Props) {
             ))}
           </div>
         </Field>
+
+        {/* Vínculos — somente em modo edição */}
+        {isEdit && e && (
+          <>
+            <Section label="Vínculos" />
+
+            <div>
+              <p className="text-xs text-slate-400 mb-1.5">Contatos vinculados</p>
+              {contatosVinculados.length === 0 ? (
+                <p className="text-xs text-slate-600 italic">Nenhum contato vinculado a esta empresa</p>
+              ) : (
+                <div className="space-y-1">
+                  {contatosVinculados.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => { onClose(); setPessoaModalEditar(p) }}
+                      className="w-full text-left bg-slate-800/50 hover:bg-slate-700/50 rounded-lg px-3 py-2 transition-colors"
+                    >
+                      <span className="text-sm text-white">{p.nome}</span>
+                      {p.cargo && (
+                        <span className="text-xs text-slate-500 ml-2">— {CARGO_LABELS[p.cargo]}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <p className="text-xs text-slate-400 mb-1.5">Orçamentos vinculados</p>
+              {orcamentosVinculados.length === 0 ? (
+                <p className="text-xs text-slate-600 italic">Nenhum orçamento vinculado</p>
+              ) : (
+                <div className="space-y-1">
+                  {orcamentosVinculados.map((orc) => (
+                    <button
+                      key={orc.id}
+                      type="button"
+                      onClick={() => { onClose(); setOrcDetalheId(orc.id) }}
+                      className="w-full text-left bg-slate-800/50 hover:bg-slate-700/50 rounded-lg px-3 py-2 transition-colors"
+                    >
+                      <span className="text-xs text-slate-500 font-mono mr-2">{orc.id}</span>
+                      <span className="text-sm text-white">{orc.nome}</span>
+                      <span className="text-xs text-slate-500 ml-2">— {COLUNA_LABELS[orc.coluna]}</span>
+                      {orc.valor != null && (
+                        <span className="text-xs text-accent ml-2">— {formatCurrency(orc.valor)}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
         <Section label="Classificação" />
         <div className="grid grid-cols-2 gap-3">

@@ -56,6 +56,7 @@ export const usePessoaStore = create<PessoaStore>()(
           atualizadoPor: userId,
           ownerId: userId,
           responsaveisIds: data.responsaveisIds ?? [],
+          empresasIds: data.empresasIds ?? [],
         }
         set((s) => {
           const pessoas = [...s.pessoas, pessoa]
@@ -94,8 +95,20 @@ export const usePessoaStore = create<PessoaStore>()(
     }),
     {
       name: 'kaue-crm-pessoas',
-      version: 1,
-      migrate: () => ({ pessoas: [], modalCriar: false, modalEditar: null }),
+      version: 2,
+      migrate: (persistedState: unknown, version: number) => {
+        if (version === 1) {
+          const old = persistedState as any
+          return {
+            ...old,
+            pessoas: (old.pessoas ?? []).map((p: any) => ({
+              ...p,
+              empresasIds: p.empresasIds ?? (p.empresaId ? [p.empresaId] : []),
+            })),
+          }
+        }
+        return { pessoas: [], modalCriar: false, modalEditar: null }
+      },
       onRehydrateStorage: () => (state) => {
         if (state) state.refreshFiltrados()
       },

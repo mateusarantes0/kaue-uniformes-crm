@@ -8,6 +8,7 @@ import {
 } from '../../types'
 import { ModalShell, Field, Section } from './CreateModal'
 import { maskWhatsApp } from '../../utils'
+import { SearchableMultiSelect } from '../ui/SearchableMultiSelect'
 
 const USERS = [
   { id: 'admin', name: 'Admin' },
@@ -31,7 +32,7 @@ export function PessoaModal({ pessoa, onClose, onCreated }: Props) {
   const [nome, setNome] = useState(p?.nome ?? '')
   const [responsaveisIds, setResponsaveisIds] = useState<string[]>(p?.responsaveisIds ?? [])
   const [telefone, setTelefone] = useState(p?.telefone ?? '')
-  const [empresaId, setEmpresaId] = useState(p?.empresaId ?? '')
+  const [empresasIds, setEmpresasIds] = useState<string[]>(p?.empresasIds ?? [])
   const [tipoContato, setTipoContato] = useState<TipoContato | ''>(p?.tipoContato ?? '')
   const [cargo, setCargo] = useState<Cargo | ''>(p?.cargo ?? '')
   const [grauInfluencia, setGrauInfluencia] = useState<GrauInfluencia | ''>(p?.grauInfluencia ?? '')
@@ -59,7 +60,7 @@ export function PessoaModal({ pessoa, onClose, onCreated }: Props) {
       nome: nome.trim(),
       responsaveisIds,
       telefone: telefone || undefined,
-      empresaId: empresaId || undefined,
+      empresasIds,
       tipoContato: (tipoContato as TipoContato) || undefined,
       cargo: (cargo as Cargo) || undefined,
       grauInfluencia: (grauInfluencia as GrauInfluencia) || undefined,
@@ -110,11 +111,15 @@ export function PessoaModal({ pessoa, onClose, onCreated }: Props) {
           </div>
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Empresa">
-            <select className="input" value={empresaId} onChange={(e) => setEmpresaId(e.target.value)}>
-              <option value="">— Nenhuma —</option>
-              {empresas.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
-            </select>
+          <Field label="Empresa(s)">
+            <SearchableMultiSelect
+              items={empresas}
+              selectedIds={empresasIds}
+              onChange={setEmpresasIds}
+              getId={(e) => e.id}
+              getLabel={(e) => e.nome}
+              placeholder="Buscar empresa..."
+            />
           </Field>
           <Field label="Tipo de Contato">
             <select className="input" value={tipoContato} onChange={(e) => setTipoContato(e.target.value as TipoContato | '')}>

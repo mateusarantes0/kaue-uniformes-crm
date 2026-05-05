@@ -15,6 +15,7 @@ export function PessoaList() {
   const deletePessoa = usePessoaStore((s) => s.deletePessoa)
   const setModalEditar = usePessoaStore((s) => s.setModalEditar)
   const setModalCriar = usePessoaStore((s) => s.setModalCriar)
+  const setEmpresaModalEditar = useEmpresaStore((s) => s.setModalEditar)
 
   const [search, setSearch] = useState('')
   const [tipoFiltro, setTipoFiltro] = useState<TipoContato | ''>('')
@@ -25,8 +26,8 @@ export function PessoaList() {
     return matchSearch && matchTipo
   })
 
-  const getEmpresa = (id?: string) =>
-    id ? empresas.find((e) => e.id === id)?.nome : undefined
+  const getEmpresas = (ids: string[]) =>
+    (ids ?? []).map((id) => empresas.find((e) => e.id === id)).filter(Boolean) as typeof empresas
 
   const handleDelete = (id: string, nome: string) => {
     if (confirm(`Excluir "${nome}"? Esta ação não pode ser desfeita.`)) {
@@ -81,7 +82,7 @@ export function PessoaList() {
               </tr>
             ) : (
               filtered.map((p) => {
-                const empresa = getEmpresa(p.empresaId)
+                const pessoaEmpresas = getEmpresas(p.empresasIds)
                 return (
                   <tr
                     key={p.id}
@@ -96,8 +97,26 @@ export function PessoaList() {
                         {p.nome}
                       </button>
                     </td>
-                    <td className="px-4 py-3 text-slate-400 hidden md:table-cell">
-                      {empresa ?? <span className="text-slate-600">—</span>}
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      {pessoaEmpresas.length > 0 ? (
+                        <span className="flex flex-wrap gap-x-1">
+                          {pessoaEmpresas.map((emp, i) => (
+                            <span key={emp.id}>
+                              <button
+                                onClick={() => setEmpresaModalEditar(emp)}
+                                className="text-accent hover:underline cursor-pointer text-sm"
+                              >
+                                {emp.nome}
+                              </button>
+                              {i < pessoaEmpresas.length - 1 && (
+                                <span className="text-slate-600">,</span>
+                              )}
+                            </span>
+                          ))}
+                        </span>
+                      ) : (
+                        <span className="text-slate-600">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-slate-400 hidden lg:table-cell">
                       {p.cargo ? CARGO_LABELS[p.cargo] : <span className="text-slate-600">—</span>}

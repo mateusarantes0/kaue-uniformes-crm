@@ -33,3 +33,27 @@ export function daysAgoISO(days: number): string {
   d.setDate(d.getDate() - days)
   return d.toISOString()
 }
+
+export function formatBRL(value: number | undefined | null): string {
+  if (value == null || isNaN(value)) return ''
+  return value.toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}
+
+export function parseBRL(masked: string): number {
+  const clean = masked.replace(/\./g, '').replace(',', '.')
+  const n = Number(clean)
+  return isNaN(n) ? 0 : n
+}
+
+export function maskBRL(raw: string): string {
+  const digits = raw.replace(/\D/g, '')
+  if (!digits) return ''
+  const padded = digits.padStart(3, '0')
+  const cents = padded.slice(-2)
+  const intPart = padded.slice(0, -2).replace(/^0+/, '') || '0'
+  const withDots = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  return `${withDots},${cents}`
+}

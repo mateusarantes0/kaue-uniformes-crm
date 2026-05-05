@@ -87,8 +87,12 @@ export const useEmpresaStore = create<EmpresaStore>()(
         import('./usePessoaStore').then(({ usePessoaStore }) => {
           const store = usePessoaStore.getState()
           store.pessoas
-            .filter((p) => p.empresaId === id)
-            .forEach((p) => store.updatePessoa(p.id, { empresaId: undefined }))
+            .filter((p) => (p.empresasIds ?? []).includes(id))
+            .forEach((p) =>
+              store.updatePessoa(p.id, {
+                empresasIds: (p.empresasIds ?? []).filter((eid) => eid !== id),
+              })
+            )
         })
       },
 
