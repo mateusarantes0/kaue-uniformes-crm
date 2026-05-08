@@ -8,7 +8,7 @@ import {
 } from '../../types'
 import { ModalShell, Field, Section } from './CreateModal'
 import { maskWhatsApp } from '../../utils'
-import { SearchableMultiSelect } from '../ui/SearchableMultiSelect'
+import { SearchableSelect, SearchableItem } from '../ui/SearchableSelect'
 
 const USERS = [
   { id: 'admin', name: 'Admin' },
@@ -112,13 +112,22 @@ export function PessoaModal({ pessoa, onClose, onCreated }: Props) {
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Empresa(s)">
-            <SearchableMultiSelect
-              items={empresas}
-              selectedIds={empresasIds}
-              onChange={setEmpresasIds}
-              getId={(e) => e.id}
-              getLabel={(e) => e.nome}
+            <SearchableSelect
+              selected={empresasIds.map((id) => {
+                const emp = empresas.find((e) => e.id === id)
+                return emp
+                  ? ({ id: emp.id, nome: emp.nome, subtitle: emp.cnpj ? `CNPJ ${emp.cnpj}` : undefined } as SearchableItem)
+                  : ({ id, nome: id } as SearchableItem)
+              })}
+              onAdd={(item) => setEmpresasIds((prev) => prev.includes(item.id) ? prev : [...prev, item.id])}
+              onRemove={(id) => setEmpresasIds((prev) => prev.filter((x) => x !== id))}
+              onSearch={(q) =>
+                empresas
+                  .filter((e) => e.nome.toLowerCase().includes(q.toLowerCase()))
+                  .map((e) => ({ id: e.id, nome: e.nome, subtitle: e.cnpj ? `CNPJ ${e.cnpj}` : undefined }))
+              }
               placeholder="Buscar empresa..."
+              multi
             />
           </Field>
           <Field label="Tipo de Contato">

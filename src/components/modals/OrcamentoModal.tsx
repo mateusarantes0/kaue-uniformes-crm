@@ -5,11 +5,9 @@ import { useEmpresaStore } from '../../store/useEmpresaStore'
 import { usePessoaStore } from '../../store/usePessoaStore'
 import {
   Orcamento, Coluna, Origem, Campanha, COLUNAS, ORIGEM_LABELS, CAMPANHA_LABELS, CARGO_LABELS,
-  Empresa, Pessoa,
 } from '../../types'
 import { ModalShell, Field } from './CreateModal'
-import { stripMask } from '../../utils'
-import { SearchableMultiSelect } from '../ui/SearchableMultiSelect'
+import { SearchableSelect, SearchableItem } from '../ui/SearchableSelect'
 import { CurrencyInput } from '../ui/CurrencyInput'
 
 const USERS = [
@@ -72,60 +70,6 @@ function MultiCheckList({
   )
 }
 
-const WA_ICON = (
-  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
-  </svg>
-)
-
-function EmpresaChip({ empresa, onRemove, onOpen }: { empresa: Empresa; onRemove: () => void; onOpen: () => void }) {
-  return (
-    <div className="flex items-center gap-2 bg-slate-700 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white">
-      <button type="button" onClick={onOpen} className="text-accent hover:underline font-medium">
-        {empresa.nome}
-      </button>
-      <button type="button" onClick={onRemove} className="text-slate-400 hover:text-red-400 transition-colors">
-        ×
-      </button>
-    </div>
-  )
-}
-
-function PessoaChip({ pessoa, onRemove }: { pessoa: Pessoa; onRemove: () => void }) {
-  return (
-    <div className="w-full bg-slate-800/80 border border-slate-700 rounded-lg px-3 py-2">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-sm text-white font-medium truncate">{pessoa.nome}</p>
-          {pessoa.cargo && (
-            <p className="text-xs text-slate-400">{CARGO_LABELS[pessoa.cargo]}</p>
-          )}
-          {pessoa.telefone && (
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs text-slate-400 font-mono">{pessoa.telefone}</span>
-              <button
-                type="button"
-                onClick={() => window.open(`https://wa.me/55${stripMask(pessoa.telefone!)}`, '_blank')}
-                title="WhatsApp"
-                className="text-green-400 hover:text-green-300 transition-colors"
-              >
-                {WA_ICON}
-              </button>
-            </div>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={onRemove}
-          className="text-slate-400 hover:text-red-400 transition-colors flex-shrink-0 mt-0.5"
-        >
-          ×
-        </button>
-      </div>
-    </div>
-  )
-}
-
 export function OrcamentoModal() {
   const modalCriar = useOrcamentoStore((s) => s.modalCriar)
   const modalEditar = useOrcamentoStore((s) => s.modalEditar)
@@ -138,7 +82,6 @@ export function OrcamentoModal() {
 
   const empresas = useEmpresaStore((s) => s.empresas)
   const addEmpresa = useEmpresaStore((s) => s.addEmpresa)
-  const setEmpresaModalEditar = useEmpresaStore((s) => s.setModalEditar)
   const pessoas = usePessoaStore((s) => s.pessoas)
   const addPessoa = usePessoaStore((s) => s.addPessoa)
 
@@ -168,12 +111,6 @@ export function OrcamentoModal() {
 
   // Tab 3
   const [cenarioAtual, setCenarioAtual] = useState(o?.cenarioAtual ?? '')
-
-  // Nested quick-add
-  const [quickEmpresaNome, setQuickEmpresaNome] = useState('')
-  const [quickPessoaNome, setQuickPessoaNome] = useState('')
-  const [showQuickEmpresa, setShowQuickEmpresa] = useState(false)
-  const [showQuickPessoa, setShowQuickPessoa] = useState(false)
 
   // Perdida inline
   const [showPerdida, setShowPerdida] = useState(false)
@@ -229,25 +166,18 @@ export function OrcamentoModal() {
     close()
   }
 
-  const handleQuickEmpresa = () => {
-    if (!quickEmpresaNome.trim()) return
-    const nova = addEmpresa({ nome: quickEmpresaNome.trim(), responsaveisIds: [] })
+  const handleQuickEmpresa = (nome: string) => {
+    const nova = addEmpresa({ nome, responsaveisIds: [] })
     setEmpresaId(nova.id)
-    setQuickEmpresaNome('')
-    setShowQuickEmpresa(false)
     toast.success(`Empresa "${nova.nome}" criada!`)
   }
 
-  const handleQuickPessoa = () => {
-    if (!quickPessoaNome.trim()) return
-    const nova = addPessoa({ nome: quickPessoaNome.trim(), responsaveisIds: [], empresasIds: [] })
+  const handleQuickPessoa = (nome: string) => {
+    const nova = addPessoa({ nome, responsaveisIds: [], empresasIds: [] })
     setContatosIds((prev) => [...prev, nova.id])
-    setQuickPessoaNome('')
-    setShowQuickPessoa(false)
     toast.success(`Pessoa "${nova.nome}" criada!`)
   }
 
-  const empresaSelecionada = empresaId ? empresas.find((e) => e.id === empresaId) : undefined
   const origemOptions = (Object.entries(ORIGEM_LABELS) as [Origem, string][]).map(([v, l]) => ({ value: v, label: l }))
   const campanhaOptions = (Object.entries(CAMPANHA_LABELS) as [Campanha, string][]).map(([v, l]) => ({ value: v, label: l }))
   const showFechouPela = coluna === 'vendido' || coluna === 'sucesso'
@@ -292,71 +222,45 @@ export function OrcamentoModal() {
 
           {/* Empresa */}
           <Field label="Empresa">
-            {empresaSelecionada ? (
-              <EmpresaChip
-                empresa={empresaSelecionada}
-                onRemove={() => setEmpresaId('')}
-                onOpen={() => { close(); setEmpresaModalEditar(empresaSelecionada) }}
-              />
-            ) : (
-              <div className="space-y-2">
-                <SearchableMultiSelect
-                  items={empresas}
-                  selectedIds={empresaId ? [empresaId] : []}
-                  onChange={(ids) => setEmpresaId(ids[0] ?? '')}
-                  getId={(e) => e.id}
-                  getLabel={(e) => e.nome}
-                  placeholder="Buscar empresa..."
-                  single
-                  onCreateNew={() => setShowQuickEmpresa(!showQuickEmpresa)}
-                />
-                {showQuickEmpresa && (
-                  <div className="flex gap-2">
-                    <input
-                      className="input flex-1 text-xs"
-                      placeholder="Nome da nova empresa"
-                      value={quickEmpresaNome}
-                      onChange={(e) => setQuickEmpresaNome(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleQuickEmpresa()}
-                      autoFocus
-                    />
-                    <button onClick={handleQuickEmpresa} className="btn-primary text-xs px-3">Criar</button>
-                    <button onClick={() => setShowQuickEmpresa(false)} className="btn-ghost text-xs">×</button>
-                  </div>
-                )}
-              </div>
-            )}
+            <SearchableSelect
+              selected={(() => {
+                const emp = empresas.find((e) => e.id === empresaId)
+                if (!emp) return []
+                return [{ id: emp.id, nome: emp.nome, subtitle: emp.cnpj ? `CNPJ ${emp.cnpj}` : undefined } as SearchableItem]
+              })()}
+              onAdd={(item) => setEmpresaId(item.id)}
+              onRemove={() => setEmpresaId('')}
+              onSearch={(q) =>
+                empresas
+                  .filter((e) => e.nome.toLowerCase().includes(q.toLowerCase()))
+                  .map((e) => ({ id: e.id, nome: e.nome, subtitle: e.cnpj ? `CNPJ ${e.cnpj}` : undefined }))
+              }
+              onCreate={handleQuickEmpresa}
+              placeholder="Buscar empresa..."
+              multi={false}
+            />
           </Field>
 
           {/* Contatos */}
           <Field label="Contatos">
-            <SearchableMultiSelect
-              items={pessoas}
-              selectedIds={contatosIds}
-              onChange={setContatosIds}
-              getId={(p) => p.id}
-              getLabel={(p) => p.nome}
-              getSubLabel={(p) => p.cargo ? CARGO_LABELS[p.cargo] : p.telefone ?? ''}
+            <SearchableSelect
+              selected={contatosIds.map((id) => {
+                const p = pessoas.find((x) => x.id === id)
+                return p
+                  ? ({ id: p.id, nome: p.nome, subtitle: p.cargo ? CARGO_LABELS[p.cargo] : undefined, telefone: p.telefone } as SearchableItem)
+                  : ({ id, nome: id } as SearchableItem)
+              })}
+              onAdd={(item) => setContatosIds((prev) => prev.includes(item.id) ? prev : [...prev, item.id])}
+              onRemove={(id) => setContatosIds((prev) => prev.filter((x) => x !== id))}
+              onSearch={(q) =>
+                pessoas
+                  .filter((p) => p.nome.toLowerCase().includes(q.toLowerCase()))
+                  .map((p) => ({ id: p.id, nome: p.nome, subtitle: p.cargo ? CARGO_LABELS[p.cargo] : undefined, telefone: p.telefone }))
+              }
+              onCreate={handleQuickPessoa}
               placeholder="Buscar contato..."
-              onCreateNew={() => setShowQuickPessoa(!showQuickPessoa)}
-              renderChip={(pessoa, onRemove) => (
-                <PessoaChip key={pessoa.id} pessoa={pessoa} onRemove={onRemove} />
-              )}
+              multi
             />
-            {showQuickPessoa && (
-              <div className="mt-2 flex gap-2">
-                <input
-                  className="input flex-1 text-xs"
-                  placeholder="Nome da nova pessoa"
-                  value={quickPessoaNome}
-                  onChange={(e) => setQuickPessoaNome(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleQuickPessoa()}
-                  autoFocus
-                />
-                <button onClick={handleQuickPessoa} className="btn-primary text-xs px-3">Criar</button>
-                <button onClick={() => setShowQuickPessoa(false)} className="btn-ghost text-xs">×</button>
-              </div>
-            )}
           </Field>
 
           <Field label="Origem">

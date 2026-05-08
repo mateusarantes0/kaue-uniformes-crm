@@ -376,6 +376,19 @@ export const COLUNAS: ColunaConfig[] = [
   { id: 'lixo',              label: 'Lixo',              emoji: '🗑️', showTotal: false, borderColor: 'border-slate-500'  },
 ]
 
+export const COLUNA_BADGE_COLORS: Record<Coluna, { fg: string; bg: string }> = {
+  lead:              { fg: 'text-slate-300',   bg: 'bg-slate-700/40' },
+  qualificacao:      { fg: 'text-cyan-300',    bg: 'bg-cyan-500/15' },
+  orcamento_enviado: { fg: 'text-amber-300',   bg: 'bg-amber-500/15' },
+  negociacao:        { fg: 'text-violet-300',  bg: 'bg-violet-500/20' },
+  objecao:           { fg: 'text-orange-300',  bg: 'bg-orange-500/15' },
+  aguardando:        { fg: 'text-yellow-300',  bg: 'bg-yellow-500/15' },
+  vendido:           { fg: 'text-green-400',   bg: 'bg-green-500/20' },
+  sucesso:           { fg: 'text-emerald-300', bg: 'bg-emerald-500/20' },
+  perdido:           { fg: 'text-red-300',     bg: 'bg-red-500/20' },
+  lixo:              { fg: 'text-slate-500',   bg: 'bg-slate-700/30' },
+}
+
 export const COLUNA_BADGE: Record<Coluna, string> = {
   lead:              'bg-slate-700 text-slate-300',
   qualificacao:      'bg-slate-600 text-slate-200',

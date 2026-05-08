@@ -28,6 +28,17 @@
   }
 }
 
+@keyframes kaueFade {
+  from { opacity: 0 }
+  to   { opacity: 1 }
+}
+@keyframes kaueRise {
+  from { opacity: 0; transform: translateY(8px) }
+  to   { opacity: 1; transform: translateY(0) }
+}
+.animate-kaue-fade { animation: kaueFade 180ms ease-out; }
+.animate-kaue-rise { animation: kaueRise 180ms ease-out; }
+
 @layer components {
   .input {
     @apply w-full bg-[#0F172A] border border-slate-700 text-white rounded-lg px-3 py-2 text-sm
