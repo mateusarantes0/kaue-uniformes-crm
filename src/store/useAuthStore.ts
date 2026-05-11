@@ -52,34 +52,26 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   loading: true,
 
   initialize: async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session?.user) {
-      const [profile, allProfiles] = await Promise.all([
-        fetchProfile(session.user.id),
-        fetchAllProfiles(),
-      ])
-      if (profile) {
-        set({ user: profile, users: allProfiles, loading: false })
-        await loadAllStores()
-      } else {
-        set({ user: null, loading: false })
-      }
-    } else {
-      set({ user: null, loading: false })
-    }
-
-    supabase.auth.onAuthStateChange(async (_event, session) => {
+    // onAuthStateChange is the authoritative source of session state.
+    // It fires INITIAL_SESSION immediately on subscription — reliable on page refresh
+    // even when the token needs to be silently refreshed (getSession can return null then).
+    supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         const [profile, allProfiles] = await Promise.all([
           fetchProfile(session.user.id),
           fetchAllProfiles(),
         ])
         if (profile) {
-          set({ user: profile, users: allProfiles })
-          await loadAllStores()
+          set({ user: profile, users: allProfiles, loading: false })
+          // Only (re)load data stores on actual sign-in events, not on silent token refreshes
+          if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+            await loadAllStores()
+          }
+        } else {
+          set({ user: null, users: [], loading: false })
         }
       } else {
-        set({ user: null, users: [] })
+        set({ user: null, users: [], loading: false })
       }
     })
   },
