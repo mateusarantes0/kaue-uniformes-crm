@@ -6,11 +6,14 @@ export function LoginPage() {
   const login = useAuthStore((s) => s.login)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const ok = login(username.trim(), password)
-    if (!ok) toast.error('Usuário ou senha inválidos')
+    setLoading(true)
+    const result = await login(username.trim(), password)
+    if (!result.ok) toast.error(result.error ?? 'Usuário ou senha inválidos')
+    setLoading(false)
   }
 
   return (
@@ -36,6 +39,7 @@ export function LoginPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
+              disabled={loading}
             />
           </div>
           <div>
@@ -47,10 +51,11 @@ export function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
+              disabled={loading}
             />
           </div>
-          <button type="submit" className="btn-primary w-full mt-2">
-            Entrar
+          <button type="submit" className="btn-primary w-full mt-2" disabled={loading}>
+            {loading ? 'Entrando...' : 'Entrar'}
           </button>
         </form>
       </div>

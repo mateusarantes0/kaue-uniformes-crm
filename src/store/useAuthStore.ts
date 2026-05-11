@@ -1,60 +1,114 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { supabase } from '../lib/supabase'
 
-interface User {
+export interface User {
   id: string
-  name: string
-  role: 'admin' | 'employee'
-}
-
-interface UserCredential {
-  id: string
-  name: string
   username: string
-  password: string
+  name: string
   role: 'admin' | 'employee'
 }
 
 interface AuthStore {
   user: User | null
-  users: UserCredential[]
-  login: (username: string, password: string) => boolean
-  logout: () => void
-  changePassword: (userId: string, currentPassword: string, newPassword: string) => boolean
+  users: User[]
+  loading: boolean
+
+  initialize: () => Promise<void>
+  login: (username: string, password: string) => Promise<{ ok: boolean; error?: string }>
+  logout: () => Promise<void>
+  changePassword: (currentPassword: string, newPassword: string) => Promise<{ ok: boolean; error?: string }>
 }
 
-const INITIAL_USERS: UserCredential[] = [
-  { id: 'admin', name: 'Admin', username: 'admin', password: 'admin123', role: 'admin'    },
-  { id: 'noemi', name: 'Noemi', username: 'noemi', password: 'noemi123', role: 'employee' },
-  { id: 'dione', name: 'Dione', username: 'dione', password: 'dione123', role: 'employee' },
-]
+async function fetchProfile(userId: string): Promise<User | null> {
+  const { data } = await supabase
+    .from('profiles')
+    .select('id, username, name, role')
+    .eq('id', userId)
+    .single()
+  return data ?? null
+}
 
-export const useAuthStore = create<AuthStore>()(
-  persist(
-    (set, get) => ({
-      user: null,
-      users: INITIAL_USERS,
+async function fetchAllProfiles(): Promise<User[]> {
+  const { data } = await supabase.from('profiles').select('id, username, name, role')
+  return (data ?? []) as User[]
+}
 
-      login: (username, password) => {
-        const cred = get().users.find((u) => u.username === username)
-        if (!cred || cred.password !== password) return false
-        set({ user: { id: cred.id, name: cred.name, role: cred.role } })
-        return true
-      },
+async function loadAllStores() {
+  const [{ useEmpresaStore }, { usePessoaStore }, { useOrcamentoStore }] = await Promise.all([
+    import('./useEmpresaStore'),
+    import('./usePessoaStore'),
+    import('./useOrcamentoStore'),
+  ])
+  await Promise.all([
+    useEmpresaStore.getState().loadAll(),
+    usePessoaStore.getState().loadAll(),
+    useOrcamentoStore.getState().loadAll(),
+  ])
+}
 
-      logout: () => set({ user: null }),
+export const useAuthStore = create<AuthStore>((set, get) => ({
+  user: null,
+  users: [],
+  loading: true,
 
-      changePassword: (userId, currentPassword, newPassword) => {
-        const cred = get().users.find((u) => u.id === userId)
-        if (!cred || cred.password !== currentPassword) return false
-        set({
-          users: get().users.map((u) =>
-            u.id === userId ? { ...u, password: newPassword } : u
-          ),
-        })
-        return true
-      },
-    }),
-    { name: 'kaue-crm-auth' }
-  )
-)
+  initialize: async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user) {
+      const [profile, allProfiles] = await Promise.all([
+        fetchProfile(session.user.id),
+        fetchAllProfiles(),
+      ])
+      if (profile) {
+        set({ user: profile, users: allProfiles, loading: false })
+        await loadAllStores()
+      } else {
+        set({ user: null, loading: false })
+      }
+    } else {
+      set({ user: null, loading: false })
+    }
+
+    supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        const [profile, allProfiles] = await Promise.all([
+          fetchProfile(session.user.id),
+          fetchAllProfiles(),
+        ])
+        if (profile) {
+          set({ user: profile, users: allProfiles })
+          await loadAllStores()
+        }
+      } else {
+        set({ user: null, users: [] })
+      }
+    })
+  },
+
+  login: async (username, password) => {
+    const email = `${username}@kaueuniformes.com`
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) return { ok: false, error: 'Usuário ou senha inválidos' }
+    return { ok: true }
+  },
+
+  logout: async () => {
+    await supabase.auth.signOut()
+    set({ user: null, users: [] })
+  },
+
+  changePassword: async (currentPassword, newPassword) => {
+    const user = get().user
+    if (!user) return { ok: false, error: 'Não autenticado' }
+
+    const email = `${user.username}@kaueuniformes.com`
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password: currentPassword,
+    })
+    if (signInError) return { ok: false, error: 'Senha atual incorreta' }
+
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    if (error) return { ok: false, error: error.message }
+    return { ok: true }
+  },
+}))

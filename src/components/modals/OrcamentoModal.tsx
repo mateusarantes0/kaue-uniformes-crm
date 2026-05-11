@@ -3,18 +3,13 @@ import toast from 'react-hot-toast'
 import { useOrcamentoStore } from '../../store/useOrcamentoStore'
 import { useEmpresaStore } from '../../store/useEmpresaStore'
 import { usePessoaStore } from '../../store/usePessoaStore'
+import { useAuthStore } from '../../store/useAuthStore'
 import {
   Orcamento, Coluna, Origem, Campanha, COLUNAS, ORIGEM_LABELS, CAMPANHA_LABELS, CARGO_LABELS,
 } from '../../types'
 import { ModalShell, Field } from './CreateModal'
 import { SearchableSelect, SearchableItem } from '../ui/SearchableSelect'
 import { CurrencyInput } from '../ui/CurrencyInput'
-
-const USERS = [
-  { id: 'admin', name: 'Admin' },
-  { id: 'noemi', name: 'Noemi' },
-  { id: 'dione', name: 'Dione' },
-]
 
 const COLUNA_OPTIONS: Coluna[] = ['lead', 'qualificacao', 'orcamento_enviado', 'negociacao', 'aguardando']
 
@@ -71,43 +66,46 @@ function MultiCheckList({
 }
 
 export function OrcamentoModal() {
-  const modalCriar = useOrcamentoStore((s) => s.modalCriar)
-  const modalEditar = useOrcamentoStore((s) => s.modalEditar)
-  const setModalCriar = useOrcamentoStore((s) => s.setModalCriar)
-  const setModalEditar = useOrcamentoStore((s) => s.setModalEditar)
-  const addOrcamento = useOrcamentoStore((s) => s.addOrcamento)
-  const updateOrcamento = useOrcamentoStore((s) => s.updateOrcamento)
-  const marcarComoGanha = useOrcamentoStore((s) => s.marcarComoGanha)
+  const modalCriar        = useOrcamentoStore((s) => s.modalCriar)
+  const modalEditar       = useOrcamentoStore((s) => s.modalEditar)
+  const setModalCriar     = useOrcamentoStore((s) => s.setModalCriar)
+  const setModalEditar    = useOrcamentoStore((s) => s.setModalEditar)
+  const addOrcamento      = useOrcamentoStore((s) => s.addOrcamento)
+  const updateOrcamento   = useOrcamentoStore((s) => s.updateOrcamento)
+  const marcarComoGanha   = useOrcamentoStore((s) => s.marcarComoGanha)
   const marcarComoPerdida = useOrcamentoStore((s) => s.marcarComoPerdida)
 
-  const empresas = useEmpresaStore((s) => s.empresas)
+  const empresas   = useEmpresaStore((s) => s.empresas)
   const addEmpresa = useEmpresaStore((s) => s.addEmpresa)
-  const pessoas = usePessoaStore((s) => s.pessoas)
-  const addPessoa = usePessoaStore((s) => s.addPessoa)
+  const pessoas    = usePessoaStore((s) => s.pessoas)
+  const addPessoa  = usePessoaStore((s) => s.addPessoa)
+  const users      = useAuthStore((s) => s.users)
+  const currentUser = useAuthStore((s) => s.user)
 
   const isEdit = !!modalEditar
   const o = modalEditar
 
   const [tab, setTab] = useState<1 | 2 | 3>(1)
+  const [saving, setSaving] = useState(false)
 
   // Tab 1
-  const [nome, setNome] = useState(o?.nome ?? '')
-  const [responsavelId, setResponsavelId] = useState(o?.responsavelId ?? 'admin')
-  const [empresaId, setEmpresaId] = useState(o?.empresaId ?? '')
+  const [nome, setNome]               = useState(o?.nome ?? '')
+  const [responsavelId, setResponsavelId] = useState(o?.responsavelId ?? currentUser?.id ?? '')
+  const [empresaId, setEmpresaId]     = useState(o?.empresaId ?? '')
   const [contatosIds, setContatosIds] = useState<string[]>(o?.contatosIds ?? [])
-  const [coluna, setColuna] = useState<Coluna>(o?.coluna ?? 'lead')
-  const [origem, setOrigem] = useState<Origem | ''>(o?.origem ?? '')
+  const [coluna, setColuna]           = useState<Coluna>(o?.coluna ?? 'lead')
+  const [origem, setOrigem]           = useState<Origem | ''>(o?.origem ?? '')
 
   // Tab 2
-  const [valor, setValor] = useState<number | undefined>(o?.valor)
-  const [probabilidade, setProbabilidade] = useState(o?.probabilidade?.toString() ?? '')
-  const [ultimoContatoEm, setUltimoContatoEm] = useState(o?.ultimoContatoEm?.split('T')[0] ?? '')
+  const [valor, setValor]                           = useState<number | undefined>(o?.valor)
+  const [probabilidade, setProbabilidade]           = useState(o?.probabilidade?.toString() ?? '')
+  const [ultimoContatoEm, setUltimoContatoEm]       = useState(o?.ultimoContatoEm?.split('T')[0] ?? '')
   const [orcamentoEnviadoEm, setOrcamentoEnviadoEm] = useState(o?.orcamentoEnviadoEm ?? '')
   const [dataFechamentoEsperada, setDataFechamentoEsperada] = useState(o?.dataFechamentoEsperada ?? '')
-  const [proximaAtividade, setProximaAtividade] = useState(o?.proximaAtividade ?? '')
-  const [dataEntrega, setDataEntrega] = useState(o?.dataEntrega ?? '')
+  const [proximaAtividade, setProximaAtividade]     = useState(o?.proximaAtividade ?? '')
+  const [dataEntrega, setDataEntrega]               = useState(o?.dataEntrega ?? '')
   const [campanhasOfertadas, setCampanhasOfertadas] = useState<Campanha[]>(o?.campanhasOfertadas ?? [])
-  const [fechouPela, setFechouPela] = useState<Campanha | ''>(o?.fechouPela ?? '')
+  const [fechouPela, setFechouPela]                 = useState<Campanha | ''>(o?.fechouPela ?? '')
 
   // Tab 3
   const [cenarioAtual, setCenarioAtual] = useState(o?.cenarioAtual ?? '')
@@ -115,15 +113,16 @@ export function OrcamentoModal() {
   // Perdida inline
   const [showPerdida, setShowPerdida] = useState(false)
   const [perdidaTipo, setPerdidaTipo] = useState<'preco' | 'prazo' | 'concorrencia' | 'sem_retorno'>('preco')
-  const [perdidaObs, setPerdidaObs] = useState('')
+  const [perdidaObs, setPerdidaObs]   = useState('')
 
   const close = () => {
     setModalCriar(false)
     setModalEditar(null)
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!nome.trim()) return
+    setSaving(true)
     const data = {
       nome: nome.trim(),
       responsavelId,
@@ -143,44 +142,51 @@ export function OrcamentoModal() {
       cenarioAtual: cenarioAtual || undefined,
     }
     if (isEdit && o) {
-      updateOrcamento(o.id, data)
+      await updateOrcamento(o.id, data)
       toast.success('Orçamento atualizado!')
     } else {
-      addOrcamento(data)
+      await addOrcamento(data)
       toast.success(`"${nome}" criado!`)
     }
+    setSaving(false)
     close()
   }
 
-  const handleGanha = () => {
+  const handleGanha = async () => {
     if (!o) return
-    marcarComoGanha(o.id)
+    setSaving(true)
+    await marcarComoGanha(o.id)
     toast.success('🏆 Marcado como Ganho!')
+    setSaving(false)
     close()
   }
 
-  const handlePerdida = () => {
+  const handlePerdida = async () => {
     if (!o) return
-    marcarComoPerdida(o.id, perdidaTipo, perdidaObs || undefined)
+    setSaving(true)
+    await marcarComoPerdida(o.id, perdidaTipo, perdidaObs || undefined)
     toast('😢 Marcado como Perdido')
+    setSaving(false)
     close()
   }
 
-  const handleQuickEmpresa = (nome: string) => {
-    const nova = addEmpresa({ nome, responsaveisIds: [] })
+  const handleQuickEmpresa = async (nome: string) => {
+    const nova = await addEmpresa({ nome, responsaveisIds: [] })
+    if (!nova) return
     setEmpresaId(nova.id)
     toast.success(`Empresa "${nova.nome}" criada!`)
   }
 
-  const handleQuickPessoa = (nome: string) => {
-    const nova = addPessoa({ nome, responsaveisIds: [], empresasIds: [] })
+  const handleQuickPessoa = async (nome: string) => {
+    const nova = await addPessoa({ nome, responsaveisIds: [], empresasIds: [] })
+    if (!nova) return
     setContatosIds((prev) => [...prev, nova.id])
     toast.success(`Pessoa "${nova.nome}" criada!`)
   }
 
-  const origemOptions = (Object.entries(ORIGEM_LABELS) as [Origem, string][]).map(([v, l]) => ({ value: v, label: l }))
+  const origemOptions   = (Object.entries(ORIGEM_LABELS) as [Origem, string][]).map(([v, l]) => ({ value: v, label: l }))
   const campanhaOptions = (Object.entries(CAMPANHA_LABELS) as [Campanha, string][]).map(([v, l]) => ({ value: v, label: l }))
-  const showFechouPela = coluna === 'vendido' || coluna === 'sucesso'
+  const showFechouPela  = coluna === 'vendido' || coluna === 'sucesso'
 
   return (
     <ModalShell title={isEdit ? `Editar: ${o?.nome}` : 'Novo Orçamento'} onClose={close} wide>
@@ -208,7 +214,7 @@ export function OrcamentoModal() {
           <div className="grid grid-cols-2 gap-3">
             <Field label="Responsável">
               <select className="input" value={responsavelId} onChange={(e) => setResponsavelId(e.target.value)}>
-                {USERS.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
               </select>
             </Field>
             <Field label="Coluna Inicial">
@@ -220,7 +226,6 @@ export function OrcamentoModal() {
             </Field>
           </div>
 
-          {/* Empresa */}
           <Field label="Empresa">
             <SearchableSelect
               selected={(() => {
@@ -241,7 +246,6 @@ export function OrcamentoModal() {
             />
           </Field>
 
-          {/* Contatos */}
           <Field label="Contatos">
             <SearchableSelect
               selected={contatosIds.map((id) => {
@@ -361,7 +365,7 @@ export function OrcamentoModal() {
           </div>
           <input className="input text-xs" placeholder="Observação (opcional)" value={perdidaObs} onChange={(e) => setPerdidaObs(e.target.value)} />
           <div className="flex gap-2">
-            <button onClick={handlePerdida} className="bg-red-700 hover:bg-red-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">Confirmar Perda</button>
+            <button onClick={handlePerdida} disabled={saving} className="bg-red-700 hover:bg-red-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">Confirmar Perda</button>
             <button onClick={() => setShowPerdida(false)} className="btn-ghost text-xs">Cancelar</button>
           </div>
         </div>
@@ -374,12 +378,14 @@ export function OrcamentoModal() {
             <>
               <button
                 onClick={handleGanha}
+                disabled={saving}
                 className="bg-green-700 hover:bg-green-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
               >
                 🏆 Ganho
               </button>
               <button
                 onClick={() => setShowPerdida(!showPerdida)}
+                disabled={saving}
                 className="bg-red-900/60 hover:bg-red-800 text-red-300 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
               >
                 😢 Perdido
@@ -388,9 +394,9 @@ export function OrcamentoModal() {
           )}
         </div>
         <div className="flex gap-3">
-          <button onClick={close} className="btn-ghost">Cancelar</button>
-          <button onClick={handleSave} disabled={!nome.trim()} className="btn-primary">
-            {isEdit ? 'Salvar Alterações' : 'Criar Orçamento'}
+          <button onClick={close} className="btn-ghost" disabled={saving}>Cancelar</button>
+          <button onClick={handleSave} disabled={!nome.trim() || saving} className="btn-primary">
+            {saving ? 'Salvando...' : isEdit ? 'Salvar Alterações' : 'Criar Orçamento'}
           </button>
         </div>
       </div>

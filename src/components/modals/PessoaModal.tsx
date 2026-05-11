@@ -2,6 +2,7 @@ import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { usePessoaStore } from '../../store/usePessoaStore'
 import { useEmpresaStore } from '../../store/useEmpresaStore'
+import { useAuthStore } from '../../store/useAuthStore'
 import {
   Pessoa, TipoContato, Cargo, GrauInfluencia, Sexo, SimNaoNA, UF, UFS,
   TIPO_CONTATO_LABELS, CARGO_LABELS, GRAU_INFLUENCIA_LABELS, SEXO_LABELS, SIM_NAO_NA_LABELS,
@@ -10,12 +11,6 @@ import { ModalShell, Field, Section } from './CreateModal'
 import { maskWhatsApp } from '../../utils'
 import { SearchableSelect, SearchableItem } from '../ui/SearchableSelect'
 
-const USERS = [
-  { id: 'admin', name: 'Admin' },
-  { id: 'noemi', name: 'Noemi' },
-  { id: 'dione', name: 'Dione' },
-]
-
 interface Props {
   pessoa?: Pessoa
   onClose: () => void
@@ -23,30 +18,32 @@ interface Props {
 }
 
 export function PessoaModal({ pessoa, onClose, onCreated }: Props) {
-  const addPessoa = usePessoaStore((s) => s.addPessoa)
+  const addPessoa    = usePessoaStore((s) => s.addPessoa)
   const updatePessoa = usePessoaStore((s) => s.updatePessoa)
-  const empresas = useEmpresaStore((s) => s.empresas)
+  const empresas     = useEmpresaStore((s) => s.empresas)
+  const users        = useAuthStore((s) => s.users)
   const isEdit = !!pessoa
   const p = pessoa
 
-  const [nome, setNome] = useState(p?.nome ?? '')
-  const [responsaveisIds, setResponsaveisIds] = useState<string[]>(p?.responsaveisIds ?? [])
-  const [telefone, setTelefone] = useState(p?.telefone ?? '')
-  const [empresasIds, setEmpresasIds] = useState<string[]>(p?.empresasIds ?? [])
-  const [tipoContato, setTipoContato] = useState<TipoContato | ''>(p?.tipoContato ?? '')
-  const [cargo, setCargo] = useState<Cargo | ''>(p?.cargo ?? '')
-  const [grauInfluencia, setGrauInfluencia] = useState<GrauInfluencia | ''>(p?.grauInfluencia ?? '')
-  const [email, setEmail] = useState(p?.email ?? '')
-  const [instagram, setInstagram] = useState(p?.instagram ?? '')
-  const [cpf, setCpf] = useState(p?.cpf ?? '')
-  const [dataNascimento, setDataNascimento] = useState(p?.dataNascimento ?? '')
-  const [sexo, setSexo] = useState<Sexo | ''>(p?.sexo ?? '')
-  const [endereco, setEndereco] = useState(p?.endereco ?? '')
-  const [cidade, setCidade] = useState(p?.cidade ?? '')
-  const [uf, setUf] = useState<UF | ''>(p?.uf ?? '')
-  const [avaliouNoGoogle, setAvaliouNoGoogle] = useState<SimNaoNA | ''>(p?.avaliouNoGoogle ?? '')
+  const [nome, setNome]                         = useState(p?.nome ?? '')
+  const [responsaveisIds, setResponsaveisIds]   = useState<string[]>(p?.responsaveisIds ?? [])
+  const [telefone, setTelefone]                 = useState(p?.telefone ?? '')
+  const [empresasIds, setEmpresasIds]           = useState<string[]>(p?.empresasIds ?? [])
+  const [tipoContato, setTipoContato]           = useState<TipoContato | ''>(p?.tipoContato ?? '')
+  const [cargo, setCargo]                       = useState<Cargo | ''>(p?.cargo ?? '')
+  const [grauInfluencia, setGrauInfluencia]     = useState<GrauInfluencia | ''>(p?.grauInfluencia ?? '')
+  const [email, setEmail]                       = useState(p?.email ?? '')
+  const [instagram, setInstagram]               = useState(p?.instagram ?? '')
+  const [cpf, setCpf]                           = useState(p?.cpf ?? '')
+  const [dataNascimento, setDataNascimento]     = useState(p?.dataNascimento ?? '')
+  const [sexo, setSexo]                         = useState<Sexo | ''>(p?.sexo ?? '')
+  const [endereco, setEndereco]                 = useState(p?.endereco ?? '')
+  const [cidade, setCidade]                     = useState(p?.cidade ?? '')
+  const [uf, setUf]                             = useState<UF | ''>(p?.uf ?? '')
+  const [avaliouNoGoogle, setAvaliouNoGoogle]   = useState<SimNaoNA | ''>(p?.avaliouNoGoogle ?? '')
   const [pedimosIndicacao, setPedimosIndicacao] = useState<SimNaoNA | ''>(p?.pedimosIndicacao ?? '')
-  const [indicacoes, setIndicacoes] = useState(p?.indicacoes ?? '')
+  const [indicacoes, setIndicacoes]             = useState(p?.indicacoes ?? '')
+  const [saving, setSaving]                     = useState(false)
 
   const toggleResponsavel = (id: string) => {
     setResponsaveisIds((prev) =>
@@ -54,8 +51,9 @@ export function PessoaModal({ pessoa, onClose, onCreated }: Props) {
     )
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!nome.trim()) return
+    setSaving(true)
     const data = {
       nome: nome.trim(),
       responsaveisIds,
@@ -77,15 +75,17 @@ export function PessoaModal({ pessoa, onClose, onCreated }: Props) {
       indicacoes: indicacoes || undefined,
     }
     if (isEdit && p) {
-      updatePessoa(p.id, data)
+      await updatePessoa(p.id, data)
       toast.success('Pessoa atualizada!')
       onClose()
     } else {
-      const nova = addPessoa(data)
+      const nova = await addPessoa(data)
+      if (!nova) { setSaving(false); return }
       toast.success(`"${nova.nome}" criada!`)
       if (onCreated) onCreated(nova)
       else onClose()
     }
+    setSaving(false)
   }
 
   return (
@@ -96,8 +96,8 @@ export function PessoaModal({ pessoa, onClose, onCreated }: Props) {
           <input autoFocus className="input" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome completo" />
         </Field>
         <Field label="Responsáveis">
-          <div className="flex gap-3">
-            {USERS.map((u) => (
+          <div className="flex gap-3 flex-wrap">
+            {users.map((u) => (
               <label key={u.id} className="flex items-center gap-1.5 cursor-pointer text-sm text-slate-300">
                 <input
                   type="checkbox"
@@ -231,9 +231,9 @@ export function PessoaModal({ pessoa, onClose, onCreated }: Props) {
         </Field>
 
         <div className="flex justify-end gap-3 pt-2">
-          <button onClick={onClose} className="btn-ghost">Cancelar</button>
-          <button onClick={handleSave} disabled={!nome.trim()} className="btn-primary">
-            {isEdit ? 'Salvar Alterações' : 'Criar Pessoa'}
+          <button onClick={onClose} className="btn-ghost" disabled={saving}>Cancelar</button>
+          <button onClick={handleSave} disabled={!nome.trim() || saving} className="btn-primary">
+            {saving ? 'Salvando...' : isEdit ? 'Salvar Alterações' : 'Criar Pessoa'}
           </button>
         </div>
       </div>

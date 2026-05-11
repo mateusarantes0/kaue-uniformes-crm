@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Toaster } from 'react-hot-toast'
 import { useAuthStore } from './store/useAuthStore'
 import { useNavStore } from './store/useNavStore'
@@ -21,10 +22,15 @@ import { EmpresaModal } from './components/modals/EmpresaModal'
 const toastStyle = { background: '#1E293B', color: '#fff', border: '1px solid #334155' }
 
 export default function App() {
+  const initialize = useAuthStore((s) => s.initialize)
   const user = useAuthStore((s) => s.user)
+  const loading = useAuthStore((s) => s.loading)
   const entity = useNavStore((s) => s.entity)
 
-  // Read modal state to conditionally mount
+  useEffect(() => {
+    initialize()
+  }, [])
+
   const orcModalCriar  = useOrcamentoStore((s) => s.modalCriar)
   const orcModalEditar = useOrcamentoStore((s) => s.modalEditar)
   const orcDetalheId   = useOrcamentoStore((s) => s.modalDetalheId)
@@ -39,6 +45,14 @@ export default function App() {
   const empModalEditar = useEmpresaStore((s) => s.modalEditar)
   const setEmpModalCriar  = useEmpresaStore((s) => s.setModalCriar)
   const setEmpModalEditar = useEmpresaStore((s) => s.setModalEditar)
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center text-slate-400">
+        Carregando...
+      </div>
+    )
+  }
 
   if (!user) {
     return (
@@ -79,12 +93,10 @@ export default function App() {
 
       <Footer />
 
-      {/* Orçamento modals — no props, read state from store internally */}
       {(orcModalCriar || orcModalEditar) && <OrcamentoModal />}
       {orcDetalheId && <OrcamentoDetalhe />}
       {pendingMove && <ObjecaoModal />}
 
-      {/* Pessoa modals */}
       {pesModalCriar && (
         <PessoaModal onClose={() => setPesModalCriar(false)} />
       )}
@@ -92,7 +104,6 @@ export default function App() {
         <PessoaModal pessoa={pesModalEditar} onClose={() => setPesModalEditar(null)} />
       )}
 
-      {/* Empresa modals */}
       {empModalCriar && (
         <EmpresaModal onClose={() => setEmpModalCriar(false)} />
       )}

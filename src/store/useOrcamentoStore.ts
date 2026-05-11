@@ -1,20 +1,78 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-import { Orcamento, Coluna, TipoObjecao, COLUNA_LABELS } from '../types'
+import toast from 'react-hot-toast'
+import { Orcamento, Coluna, TipoObjecao, COLUNA_LABELS, ItemAcao, HistoricoItem } from '../types'
 import { nowISO } from '../utils'
 import { useAuthStore } from './useAuthStore'
-import { sampleOrcamentos } from '../data/sampleData'
+import { supabase } from '../lib/supabase'
 
-export interface PendingMove {
-  orcamentoId: string
-  colunaDestino: Coluna
-  motivo: 'objecao' | 'perdido'
+// --------------- helpers ---------------
+
+function rowToOrcamento(row: Record<string, unknown>): Orcamento {
+  return {
+    id: row.id as string,
+    nome: row.nome as string,
+    responsavelId: row.responsavel_id as string,
+    valor: row.valor as number | undefined,
+    empresaId: row.empresa_id as string | undefined,
+    contatosIds: (row.contatos_ids as string[]) ?? [],
+    coluna: row.coluna as Coluna,
+    probabilidade: row.probabilidade as number | undefined,
+    ultimoContatoEm: row.ultimo_contato_em as string | undefined,
+    orcamentoEnviadoEm: row.orcamento_enviado_em as string | undefined,
+    dataFechamentoEsperada: row.data_fechamento_esperada as string | undefined,
+    proximaAtividade: row.proxima_atividade as string | undefined,
+    vendidoEm: row.vendido_em as string | undefined,
+    dataPerda: row.data_perda as string | undefined,
+    dataEntrega: row.data_entrega as string | undefined,
+    origem: row.origem as Orcamento['origem'],
+    campanhasOfertadas: (row.campanhas_ofertadas as Orcamento['campanhasOfertadas']) ?? [],
+    fechouPela: row.fechou_pela as Orcamento['fechouPela'],
+    tipoObjecao: row.tipo_objecao as TipoObjecao | undefined,
+    observacaoObjecao: row.observacao_objecao as string | undefined,
+    cenarioAtual: row.cenario_atual as string | undefined,
+    itensAcao: (row.itens_acao as ItemAcao[]) ?? [],
+    historico: (row.historico as HistoricoItem[]) ?? [],
+    ownerId: row.owner_id as string,
+    criadoPor: row.criado_por as string,
+    atualizadoPor: row.atualizado_por as string,
+    criadoEm: row.criado_em as string,
+    atualizadoEm: row.atualizado_em as string,
+  }
+}
+
+function orcamentoToUpdateRow(orc: Orcamento, userId: string): Record<string, unknown> {
+  return {
+    nome: orc.nome,
+    responsavel_id: orc.responsavelId ?? null,
+    valor: orc.valor ?? null,
+    empresa_id: orc.empresaId ?? null,
+    contatos_ids: orc.contatosIds ?? [],
+    coluna: orc.coluna,
+    probabilidade: orc.probabilidade ?? null,
+    ultimo_contato_em: orc.ultimoContatoEm ?? null,
+    orcamento_enviado_em: orc.orcamentoEnviadoEm ?? null,
+    data_fechamento_esperada: orc.dataFechamentoEsperada ?? null,
+    proxima_atividade: orc.proximaAtividade ?? null,
+    vendido_em: orc.vendidoEm ?? null,
+    data_perda: orc.dataPerda ?? null,
+    data_entrega: orc.dataEntrega ?? null,
+    origem: orc.origem ?? null,
+    campanhas_ofertadas: orc.campanhasOfertadas ?? [],
+    fechou_pela: orc.fechouPela ?? null,
+    tipo_objecao: orc.tipoObjecao ?? null,
+    observacao_objecao: orc.observacaoObjecao ?? null,
+    cenario_atual: orc.cenarioAtual ?? null,
+    itens_acao: orc.itensAcao ?? [],
+    historico: orc.historico ?? [],
+    atualizado_por: userId,
+    atualizado_em: nowISO(),
+  }
 }
 
 function computeFiltered(orcamentos: Orcamento[]): Orcamento[] {
   const { user } = useAuthStore.getState()
   if (!user || user.role === 'admin') return orcamentos
-  return orcamentos.filter((c) => (c.ownerId ?? 'admin') === user.id)
+  return orcamentos.filter((o) => (o.ownerId ?? '') === user.id)
 }
 
 function nextId(orcamentos: Orcamento[]): string {
@@ -23,6 +81,14 @@ function nextId(orcamentos: Orcamento[]): string {
     .filter((n) => !isNaN(n))
   const max = nums.length > 0 ? Math.max(...nums) : 0
   return `ORC-${String(max + 1).padStart(4, '0')}`
+}
+
+// --------------- store ---------------
+
+export interface PendingMove {
+  orcamentoId: string
+  colunaDestino: Coluna
+  motivo: 'objecao' | 'perdido'
 }
 
 type AddData = Omit<Orcamento, 'id' | 'criadoEm' | 'atualizadoEm' | 'historico' | 'itensAcao' | 'ownerId' | 'criadoPor' | 'atualizadoPor'>
@@ -35,15 +101,16 @@ interface OrcamentoStore {
   modalDetalheId: string | null
   pendingMove: PendingMove | null
 
-  addOrcamento: (data: AddData) => void
-  updateOrcamento: (id: string, data: Partial<Orcamento>) => void
-  moveOrcamento: (id: string, coluna: Coluna, tipoObjecao?: TipoObjecao, observacaoObjecao?: string) => void
-  deleteOrcamento: (id: string) => void
-  marcarComoGanha: (id: string) => void
-  marcarComoPerdida: (id: string, tipoObjecao: TipoObjecao, observacao?: string) => void
-  addItemAcao: (orcamentoId: string, texto: string) => void
-  toggleItemAcao: (orcamentoId: string, itemId: string) => void
-  deleteItemAcao: (orcamentoId: string, itemId: string) => void
+  loadAll: () => Promise<void>
+  addOrcamento: (data: AddData) => Promise<void>
+  updateOrcamento: (id: string, data: Partial<Orcamento>) => Promise<void>
+  moveOrcamento: (id: string, coluna: Coluna, tipoObjecao?: TipoObjecao, observacaoObjecao?: string) => Promise<void>
+  deleteOrcamento: (id: string) => Promise<void>
+  marcarComoGanha: (id: string) => Promise<void>
+  marcarComoPerdida: (id: string, tipoObjecao: TipoObjecao, observacao?: string) => Promise<void>
+  addItemAcao: (orcamentoId: string, texto: string) => Promise<void>
+  toggleItemAcao: (orcamentoId: string, itemId: string) => Promise<void>
+  deleteItemAcao: (orcamentoId: string, itemId: string) => Promise<void>
   removePessoaFromAll: (pessoaId: string) => void
   removeEmpresaFromAll: (empresaId: string) => void
   refreshFiltrados: () => void
@@ -54,209 +121,313 @@ interface OrcamentoStore {
   setPendingMove: (move: PendingMove | null) => void
 }
 
-export const useOrcamentoStore = create<OrcamentoStore>()(
-  persist(
-    (set) => ({
-      orcamentos: sampleOrcamentos,
-      orcamentosFiltrados: sampleOrcamentos,
-      modalCriar: false,
-      modalEditar: null,
-      modalDetalheId: null,
-      pendingMove: null,
+export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
+  orcamentos: [],
+  orcamentosFiltrados: [],
+  modalCriar: false,
+  modalEditar: null,
+  modalDetalheId: null,
+  pendingMove: null,
 
-      addOrcamento: (data) => {
-        set((s) => {
-          const now = nowISO()
-          const userId = useAuthStore.getState().user?.id ?? 'admin'
-          const orcamento: Orcamento = {
-            ...data,
-            id: nextId(s.orcamentos),
-            criadoEm: now,
-            atualizadoEm: now,
-            criadoPor: userId,
-            atualizadoPor: userId,
-            ownerId: userId,
-            campanhasOfertadas: data.campanhasOfertadas ?? [],
-            contatosIds: data.contatosIds ?? [],
-            historico: [{ data: now, texto: 'Orçamento criado', usuarioId: userId }],
-            itensAcao: [],
-          }
-          const orcamentos = [orcamento, ...s.orcamentos]
-          return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
-        })
-      },
+  loadAll: async () => {
+    const { data, error } = await supabase
+      .from('orcamentos')
+      .select('*')
+      .order('criado_em', { ascending: false })
+    if (error) { console.error(error); return }
+    const orcamentos = (data as Record<string, unknown>[]).map(rowToOrcamento)
+    set({ orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) })
 
-      updateOrcamento: (id, data) => {
-        set((s) => {
-          const now = nowISO()
-          const userId = useAuthStore.getState().user?.id ?? 'admin'
-          const orcamentos = s.orcamentos.map((o) =>
-            o.id === id
-              ? {
-                  ...o,
-                  ...data,
-                  ultimoContatoEm: now,
-                  atualizadoEm: now,
-                  atualizadoPor: userId,
-                  historico: [...o.historico, { data: now, texto: 'Dados atualizados', usuarioId: userId }],
-                }
-              : o
-          )
-          return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
-        })
-      },
+    supabase
+      .channel('orcamentos-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orcamentos' }, () => {
+        get().loadAll()
+      })
+      .subscribe()
+  },
 
-      moveOrcamento: (id, coluna, tipoObjecao, observacaoObjecao) => {
-        set((s) => {
-          const now = nowISO()
-          const userId = useAuthStore.getState().user?.id ?? 'admin'
-          const orcamentos = s.orcamentos.map((o) => {
-            if (o.id !== id) return o
-            return {
-              ...o,
-              coluna,
-              ultimoContatoEm: now,
-              atualizadoEm: now,
-              atualizadoPor: userId,
-              ...(tipoObjecao ? { tipoObjecao, observacaoObjecao } : {}),
-              historico: [...o.historico, { data: now, texto: `Movido para: ${COLUNA_LABELS[coluna]}`, usuarioId: userId }],
-            }
-          })
-          return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos), pendingMove: null }
-        })
-      },
-
-      deleteOrcamento: (id) =>
-        set((s) => {
-          const orcamentos = s.orcamentos.filter((o) => o.id !== id)
-          return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
-        }),
-
-      marcarComoGanha: (id) => {
-        set((s) => {
-          const now = nowISO()
-          const userId = useAuthStore.getState().user?.id ?? 'admin'
-          const orcamentos = s.orcamentos.map((o) =>
-            o.id === id
-              ? {
-                  ...o,
-                  coluna: 'vendido' as Coluna,
-                  vendidoEm: now,
-                  ultimoContatoEm: now,
-                  atualizadoEm: now,
-                  atualizadoPor: userId,
-                  historico: [...o.historico, { data: now, texto: '🏆 Marcado como Ganho', usuarioId: userId }],
-                }
-              : o
-          )
-          return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
-        })
-      },
-
-      marcarComoPerdida: (id, tipoObjecao, observacao) => {
-        set((s) => {
-          const now = nowISO()
-          const userId = useAuthStore.getState().user?.id ?? 'admin'
-          const orcamentos = s.orcamentos.map((o) =>
-            o.id === id
-              ? {
-                  ...o,
-                  coluna: 'perdido' as Coluna,
-                  dataPerda: now,
-                  tipoObjecao,
-                  observacaoObjecao: observacao,
-                  ultimoContatoEm: now,
-                  atualizadoEm: now,
-                  atualizadoPor: userId,
-                  historico: [...o.historico, { data: now, texto: `😢 Marcado como Perdido — ${tipoObjecao}`, usuarioId: userId }],
-                }
-              : o
-          )
-          return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos), pendingMove: null }
-        })
-      },
-
-      addItemAcao: (orcamentoId, texto) => {
-        set((s) => {
-          const now = nowISO()
-          const item = {
-            id: `ia_${Date.now()}`,
-            texto,
-            concluido: false,
-            criadoEm: now,
-          }
-          const orcamentos = s.orcamentos.map((o) =>
-            o.id === orcamentoId ? { ...o, itensAcao: [...o.itensAcao, item] } : o
-          )
-          return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
-        })
-      },
-
-      toggleItemAcao: (orcamentoId, itemId) => {
-        set((s) => {
-          const orcamentos = s.orcamentos.map((o) =>
-            o.id === orcamentoId
-              ? { ...o, itensAcao: o.itensAcao.map((i) => i.id === itemId ? { ...i, concluido: !i.concluido } : i) }
-              : o
-          )
-          return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
-        })
-      },
-
-      deleteItemAcao: (orcamentoId, itemId) => {
-        set((s) => {
-          const orcamentos = s.orcamentos.map((o) =>
-            o.id === orcamentoId ? { ...o, itensAcao: o.itensAcao.filter((i) => i.id !== itemId) } : o
-          )
-          return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
-        })
-      },
-
-      removePessoaFromAll: (pessoaId) => {
-        set((s) => {
-          const orcamentos = s.orcamentos.map((o) => ({
-            ...o,
-            contatosIds: o.contatosIds.filter((id) => id !== pessoaId),
-          }))
-          return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
-        })
-      },
-
-      removeEmpresaFromAll: (empresaId) => {
-        set((s) => {
-          const orcamentos = s.orcamentos.map((o) => ({
-            ...o,
-            empresaId: o.empresaId === empresaId ? undefined : o.empresaId,
-          }))
-          return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
-        })
-      },
-
-      refreshFiltrados: () =>
-        set((s) => ({ orcamentosFiltrados: computeFiltered(s.orcamentos) })),
-
-      setModalCriar: (open) => set({ modalCriar: open }),
-      setModalEditar: (o) => set({ modalEditar: o }),
-      setModalDetalheId: (id) => set({ modalDetalheId: id }),
-      setPendingMove: (move) => set({ pendingMove: move }),
-    }),
-    {
-      name: 'kaue-crm-orcamentos',
-      version: 1,
-      migrate: () => ({
-        orcamentos: [],
-        modalCriar: false,
-        modalEditar: null,
-        modalDetalheId: null,
-        pendingMove: null,
-      }),
-      onRehydrateStorage: () => (state) => {
-        if (state) state.refreshFiltrados()
-      },
-      partialize: (s) => ({ orcamentos: s.orcamentos }),
+  addOrcamento: async (data) => {
+    const now = nowISO()
+    const userId = useAuthStore.getState().user?.id ?? ''
+    const orcamento: Orcamento = {
+      ...data,
+      id: nextId(get().orcamentos),
+      criadoEm: now,
+      atualizadoEm: now,
+      criadoPor: userId,
+      atualizadoPor: userId,
+      ownerId: userId,
+      campanhasOfertadas: data.campanhasOfertadas ?? [],
+      contatosIds: data.contatosIds ?? [],
+      historico: [{ data: now, texto: 'Orçamento criado', usuarioId: userId }],
+      itensAcao: [],
     }
-  )
-)
+
+    const { error } = await supabase.from('orcamentos').insert({
+      id: orcamento.id,
+      nome: orcamento.nome,
+      responsavel_id: orcamento.responsavelId ?? null,
+      valor: orcamento.valor ?? null,
+      empresa_id: orcamento.empresaId ?? null,
+      contatos_ids: orcamento.contatosIds,
+      coluna: orcamento.coluna,
+      probabilidade: orcamento.probabilidade ?? null,
+      ultimo_contato_em: orcamento.ultimoContatoEm ?? null,
+      orcamento_enviado_em: orcamento.orcamentoEnviadoEm ?? null,
+      data_fechamento_esperada: orcamento.dataFechamentoEsperada ?? null,
+      proxima_atividade: orcamento.proximaAtividade ?? null,
+      data_entrega: orcamento.dataEntrega ?? null,
+      origem: orcamento.origem ?? null,
+      campanhas_ofertadas: orcamento.campanhasOfertadas,
+      fechou_pela: orcamento.fechouPela ?? null,
+      cenario_atual: orcamento.cenarioAtual ?? null,
+      itens_acao: [],
+      historico: orcamento.historico,
+      owner_id: userId,
+      criado_por: userId,
+      atualizado_por: userId,
+    })
+
+    if (error) {
+      toast.error('Erro ao criar orçamento')
+      console.error(error)
+      return
+    }
+
+    set((s) => {
+      const orcamentos = [orcamento, ...s.orcamentos]
+      return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
+    })
+  },
+
+  updateOrcamento: async (id, data) => {
+    const now = nowISO()
+    const userId = useAuthStore.getState().user?.id ?? ''
+    const existing = get().orcamentos.find((o) => o.id === id)
+    if (!existing) return
+
+    const updated: Orcamento = {
+      ...existing,
+      ...data,
+      ultimoContatoEm: now,
+      atualizadoEm: now,
+      atualizadoPor: userId,
+      historico: [...existing.historico, { data: now, texto: 'Dados atualizados', usuarioId: userId }],
+    }
+
+    const { error } = await supabase
+      .from('orcamentos')
+      .update(orcamentoToUpdateRow(updated, userId))
+      .eq('id', id)
+
+    if (error) { toast.error('Erro ao atualizar orçamento'); return }
+
+    set((s) => {
+      const orcamentos = s.orcamentos.map((o) => o.id === id ? updated : o)
+      return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
+    })
+  },
+
+  moveOrcamento: async (id, coluna, tipoObjecao, observacaoObjecao) => {
+    const now = nowISO()
+    const userId = useAuthStore.getState().user?.id ?? ''
+    const existing = get().orcamentos.find((o) => o.id === id)
+    if (!existing) return
+
+    const updated: Orcamento = {
+      ...existing,
+      coluna,
+      ultimoContatoEm: now,
+      atualizadoEm: now,
+      atualizadoPor: userId,
+      ...(tipoObjecao ? { tipoObjecao, observacaoObjecao } : {}),
+      historico: [
+        ...existing.historico,
+        { data: now, texto: `Movido para: ${COLUNA_LABELS[coluna]}`, usuarioId: userId },
+      ],
+    }
+
+    const { error } = await supabase
+      .from('orcamentos')
+      .update(orcamentoToUpdateRow(updated, userId))
+      .eq('id', id)
+
+    if (error) { toast.error('Erro ao mover orçamento'); return }
+
+    set((s) => {
+      const orcamentos = s.orcamentos.map((o) => o.id === id ? updated : o)
+      return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos), pendingMove: null }
+    })
+  },
+
+  deleteOrcamento: async (id) => {
+    const { error } = await supabase.from('orcamentos').delete().eq('id', id)
+    if (error) { toast.error('Erro ao deletar orçamento'); return }
+    set((s) => {
+      const orcamentos = s.orcamentos.filter((o) => o.id !== id)
+      return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
+    })
+  },
+
+  marcarComoGanha: async (id) => {
+    const now = nowISO()
+    const userId = useAuthStore.getState().user?.id ?? ''
+    const existing = get().orcamentos.find((o) => o.id === id)
+    if (!existing) return
+
+    const updated: Orcamento = {
+      ...existing,
+      coluna: 'vendido',
+      vendidoEm: now,
+      ultimoContatoEm: now,
+      atualizadoEm: now,
+      atualizadoPor: userId,
+      historico: [...existing.historico, { data: now, texto: '🏆 Marcado como Ganho', usuarioId: userId }],
+    }
+
+    const { error } = await supabase
+      .from('orcamentos')
+      .update(orcamentoToUpdateRow(updated, userId))
+      .eq('id', id)
+
+    if (error) { toast.error('Erro ao atualizar orçamento'); return }
+
+    set((s) => {
+      const orcamentos = s.orcamentos.map((o) => o.id === id ? updated : o)
+      return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
+    })
+  },
+
+  marcarComoPerdida: async (id, tipoObjecao, observacao) => {
+    const now = nowISO()
+    const userId = useAuthStore.getState().user?.id ?? ''
+    const existing = get().orcamentos.find((o) => o.id === id)
+    if (!existing) return
+
+    const updated: Orcamento = {
+      ...existing,
+      coluna: 'perdido',
+      dataPerda: now,
+      tipoObjecao,
+      observacaoObjecao: observacao,
+      ultimoContatoEm: now,
+      atualizadoEm: now,
+      atualizadoPor: userId,
+      historico: [
+        ...existing.historico,
+        { data: now, texto: `😢 Marcado como Perdido — ${tipoObjecao}`, usuarioId: userId },
+      ],
+    }
+
+    const { error } = await supabase
+      .from('orcamentos')
+      .update(orcamentoToUpdateRow(updated, userId))
+      .eq('id', id)
+
+    if (error) { toast.error('Erro ao atualizar orçamento'); return }
+
+    set((s) => {
+      const orcamentos = s.orcamentos.map((o) => o.id === id ? updated : o)
+      return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos), pendingMove: null }
+    })
+  },
+
+  addItemAcao: async (orcamentoId, texto) => {
+    const now = nowISO()
+    const existing = get().orcamentos.find((o) => o.id === orcamentoId)
+    if (!existing) return
+
+    const item: ItemAcao = { id: `ia_${Date.now()}`, texto, concluido: false, criadoEm: now }
+    const itensAcao = [...existing.itensAcao, item]
+
+    const { error } = await supabase
+      .from('orcamentos')
+      .update({ itens_acao: itensAcao })
+      .eq('id', orcamentoId)
+
+    if (error) { toast.error('Erro ao adicionar item'); return }
+
+    set((s) => {
+      const orcamentos = s.orcamentos.map((o) =>
+        o.id === orcamentoId ? { ...o, itensAcao } : o
+      )
+      return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
+    })
+  },
+
+  toggleItemAcao: async (orcamentoId, itemId) => {
+    const existing = get().orcamentos.find((o) => o.id === orcamentoId)
+    if (!existing) return
+
+    const itensAcao = existing.itensAcao.map((i) =>
+      i.id === itemId ? { ...i, concluido: !i.concluido } : i
+    )
+
+    const { error } = await supabase
+      .from('orcamentos')
+      .update({ itens_acao: itensAcao })
+      .eq('id', orcamentoId)
+
+    if (error) { toast.error('Erro ao atualizar item'); return }
+
+    set((s) => {
+      const orcamentos = s.orcamentos.map((o) =>
+        o.id === orcamentoId ? { ...o, itensAcao } : o
+      )
+      return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
+    })
+  },
+
+  deleteItemAcao: async (orcamentoId, itemId) => {
+    const existing = get().orcamentos.find((o) => o.id === orcamentoId)
+    if (!existing) return
+
+    const itensAcao = existing.itensAcao.filter((i) => i.id !== itemId)
+
+    const { error } = await supabase
+      .from('orcamentos')
+      .update({ itens_acao: itensAcao })
+      .eq('id', orcamentoId)
+
+    if (error) { toast.error('Erro ao remover item'); return }
+
+    set((s) => {
+      const orcamentos = s.orcamentos.map((o) =>
+        o.id === orcamentoId ? { ...o, itensAcao } : o
+      )
+      return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
+    })
+  },
+
+  // Local state only — DB cascade handles empresa_id via ON DELETE SET NULL
+  removeEmpresaFromAll: (empresaId) => {
+    set((s) => {
+      const orcamentos = s.orcamentos.map((o) => ({
+        ...o,
+        empresaId: o.empresaId === empresaId ? undefined : o.empresaId,
+      }))
+      return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
+    })
+  },
+
+  // Local state only — DB is updated via updateOrcamento in deletePessoa
+  removePessoaFromAll: (pessoaId) => {
+    set((s) => {
+      const orcamentos = s.orcamentos.map((o) => ({
+        ...o,
+        contatosIds: o.contatosIds.filter((id) => id !== pessoaId),
+      }))
+      return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
+    })
+  },
+
+  refreshFiltrados: () => set((s) => ({ orcamentosFiltrados: computeFiltered(s.orcamentos) })),
+
+  setModalCriar: (open) => set({ modalCriar: open }),
+  setModalEditar: (o) => set({ modalEditar: o }),
+  setModalDetalheId: (id) => set({ modalDetalheId: id }),
+  setPendingMove: (move) => set({ pendingMove: move }),
+}))
 
 useAuthStore.subscribe(() => {
   useOrcamentoStore.getState().refreshFiltrados()

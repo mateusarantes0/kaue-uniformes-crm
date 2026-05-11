@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { useEmpresaStore } from '../../store/useEmpresaStore'
+import { useAuthStore } from '../../store/useAuthStore'
 import {
   Empresa, Segmento, TipoCliente, GrupoEstrategico, Frequencia, StatusCliente, PorteEmpresa, UF, UFS,
   SEGMENTO_LABELS, TIPO_CLIENTE_LABELS, GRUPO_ESTRATEGICO_LABELS, FREQUENCIA_LABELS,
@@ -9,12 +10,6 @@ import {
 import { ModalShell, Field, Section } from './CreateModal'
 import { VinculosSection } from '../empresa/VinculosSection'
 
-const USERS = [
-  { id: 'admin', name: 'Admin' },
-  { id: 'noemi', name: 'Noemi' },
-  { id: 'dione', name: 'Dione' },
-]
-
 interface Props {
   empresa?: Empresa
   onClose: () => void
@@ -22,28 +17,30 @@ interface Props {
 }
 
 export function EmpresaModal({ empresa, onClose, onCreated }: Props) {
-  const addEmpresa = useEmpresaStore((s) => s.addEmpresa)
+  const addEmpresa    = useEmpresaStore((s) => s.addEmpresa)
   const updateEmpresa = useEmpresaStore((s) => s.updateEmpresa)
+  const users         = useAuthStore((s) => s.users)
   const isEdit = !!empresa
   const e = empresa
 
-  const [nome, setNome] = useState(e?.nome ?? '')
-  const [razaoSocial, setRazaoSocial] = useState(e?.razaoSocial ?? '')
-  const [cnpj, setCnpj] = useState(e?.cnpj ?? '')
-  const [responsaveisIds, setResponsaveisIds] = useState<string[]>(e?.responsaveisIds ?? [])
-  const [segmento, setSegmento] = useState<Segmento | ''>(e?.segmento ?? '')
-  const [tipoCliente, setTipoCliente] = useState<TipoCliente | ''>(e?.tipoCliente ?? '')
+  const [nome, setNome]                         = useState(e?.nome ?? '')
+  const [razaoSocial, setRazaoSocial]           = useState(e?.razaoSocial ?? '')
+  const [cnpj, setCnpj]                         = useState(e?.cnpj ?? '')
+  const [responsaveisIds, setResponsaveisIds]   = useState<string[]>(e?.responsaveisIds ?? [])
+  const [segmento, setSegmento]                 = useState<Segmento | ''>(e?.segmento ?? '')
+  const [tipoCliente, setTipoCliente]           = useState<TipoCliente | ''>(e?.tipoCliente ?? '')
   const [grupoEstrategico, setGrupoEstrategico] = useState<GrupoEstrategico | ''>(e?.grupoEstrategico ?? '')
-  const [frequencia, setFrequencia] = useState<Frequencia | ''>(e?.frequencia ?? '')
-  const [statusCliente, setStatusCliente] = useState<StatusCliente | ''>(e?.statusCliente ?? '')
-  const [porteEmpresa, setPorteEmpresa] = useState<PorteEmpresa | ''>(e?.porteEmpresa ?? '')
-  const [site, setSite] = useState(e?.site ?? '')
-  const [email, setEmail] = useState(e?.email ?? '')
-  const [instagram, setInstagram] = useState(e?.instagram ?? '')
-  const [linkedin, setLinkedin] = useState(e?.linkedin ?? '')
-  const [endereco, setEndereco] = useState(e?.endereco ?? '')
-  const [cidade, setCidade] = useState(e?.cidade ?? '')
-  const [uf, setUf] = useState<UF | ''>(e?.uf ?? '')
+  const [frequencia, setFrequencia]             = useState<Frequencia | ''>(e?.frequencia ?? '')
+  const [statusCliente, setStatusCliente]       = useState<StatusCliente | ''>(e?.statusCliente ?? '')
+  const [porteEmpresa, setPorteEmpresa]         = useState<PorteEmpresa | ''>(e?.porteEmpresa ?? '')
+  const [site, setSite]                         = useState(e?.site ?? '')
+  const [email, setEmail]                       = useState(e?.email ?? '')
+  const [instagram, setInstagram]               = useState(e?.instagram ?? '')
+  const [linkedin, setLinkedin]                 = useState(e?.linkedin ?? '')
+  const [endereco, setEndereco]                 = useState(e?.endereco ?? '')
+  const [cidade, setCidade]                     = useState(e?.cidade ?? '')
+  const [uf, setUf]                             = useState<UF | ''>(e?.uf ?? '')
+  const [saving, setSaving]                     = useState(false)
 
   const toggleResponsavel = (id: string) => {
     setResponsaveisIds((prev) =>
@@ -51,8 +48,9 @@ export function EmpresaModal({ empresa, onClose, onCreated }: Props) {
     )
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!nome.trim()) return
+    setSaving(true)
     const data = {
       nome: nome.trim(),
       razaoSocial: razaoSocial || undefined,
@@ -73,15 +71,17 @@ export function EmpresaModal({ empresa, onClose, onCreated }: Props) {
       uf: (uf as UF) || undefined,
     }
     if (isEdit && e) {
-      updateEmpresa(e.id, data)
+      await updateEmpresa(e.id, data)
       toast.success('Empresa atualizada!')
       onClose()
     } else {
-      const nova = addEmpresa(data)
+      const nova = await addEmpresa(data)
+      if (!nova) { setSaving(false); return }
       toast.success(`"${nova.nome}" criada!`)
       if (onCreated) onCreated(nova)
       else onClose()
     }
+    setSaving(false)
   }
 
   return (
@@ -100,8 +100,8 @@ export function EmpresaModal({ empresa, onClose, onCreated }: Props) {
           </Field>
         </div>
         <Field label="Responsáveis">
-          <div className="flex gap-3">
-            {USERS.map((u) => (
+          <div className="flex gap-3 flex-wrap">
+            {users.map((u) => (
               <label key={u.id} className="flex items-center gap-1.5 cursor-pointer text-sm text-slate-300">
                 <input
                   type="checkbox"
@@ -213,9 +213,9 @@ export function EmpresaModal({ empresa, onClose, onCreated }: Props) {
         </div>
 
         <div className="flex justify-end gap-3 pt-2">
-          <button onClick={onClose} className="btn-ghost">Cancelar</button>
-          <button onClick={handleSave} disabled={!nome.trim()} className="btn-primary">
-            {isEdit ? 'Salvar Alterações' : 'Criar Empresa'}
+          <button onClick={onClose} className="btn-ghost" disabled={saving}>Cancelar</button>
+          <button onClick={handleSave} disabled={!nome.trim() || saving} className="btn-primary">
+            {saving ? 'Salvando...' : isEdit ? 'Salvar Alterações' : 'Criar Empresa'}
           </button>
         </div>
       </div>

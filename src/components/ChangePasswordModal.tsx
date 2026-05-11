@@ -8,27 +8,29 @@ interface Props {
 }
 
 export function ChangePasswordModal({ onClose }: Props) {
-  const user           = useAuthStore((s) => s.user)
   const changePassword = useAuthStore((s) => s.changePassword)
 
-  const [current, setCurrent]   = useState('')
-  const [next, setNext]         = useState('')
-  const [confirm, setConfirm]   = useState('')
+  const [current, setCurrent]     = useState('')
+  const [next, setNext]           = useState('')
+  const [confirm, setConfirm]     = useState('')
   const [authError, setAuthError] = useState('')
+  const [saving, setSaving]       = useState(false)
 
-  const newTooShort  = next.length > 0 && next.length < 6
-  const noMatch      = confirm.length > 0 && next !== confirm
-  const canSave      = current && next.length >= 6 && next === confirm
+  const newTooShort = next.length > 0 && next.length < 6
+  const noMatch     = confirm.length > 0 && next !== confirm
+  const canSave     = current && next.length >= 6 && next === confirm
 
-  const handleSave = () => {
-    if (!user || !canSave) return
+  const handleSave = async () => {
+    if (!canSave) return
+    setSaving(true)
     setAuthError('')
-    const ok = changePassword(user.id, current, next)
-    if (ok) {
+    const result = await changePassword(current, next)
+    setSaving(false)
+    if (result.ok) {
       toast.success('Senha alterada com sucesso!')
       onClose()
     } else {
-      setAuthError('Senha atual incorreta')
+      setAuthError(result.error ?? 'Erro ao alterar senha')
     }
   }
 
@@ -43,6 +45,7 @@ export function ChangePasswordModal({ onClose }: Props) {
             placeholder="••••••••"
             value={current}
             onChange={(e) => { setCurrent(e.target.value); setAuthError('') }}
+            disabled={saving}
           />
           {authError && <p className="text-red-400 text-xs mt-1">{authError}</p>}
         </Field>
@@ -54,6 +57,7 @@ export function ChangePasswordModal({ onClose }: Props) {
             placeholder="mínimo 6 caracteres"
             value={next}
             onChange={(e) => setNext(e.target.value)}
+            disabled={saving}
           />
           {newTooShort && <p className="text-red-400 text-xs mt-1">Mínimo de 6 caracteres</p>}
         </Field>
@@ -65,14 +69,15 @@ export function ChangePasswordModal({ onClose }: Props) {
             placeholder="••••••••"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
+            disabled={saving}
           />
           {noMatch && <p className="text-red-400 text-xs mt-1">As senhas não coincidem</p>}
         </Field>
 
         <div className="flex justify-end gap-3 pt-1">
-          <button onClick={onClose} className="btn-ghost">Cancelar</button>
-          <button onClick={handleSave} disabled={!canSave} className="btn-primary">
-            Salvar
+          <button onClick={onClose} className="btn-ghost" disabled={saving}>Cancelar</button>
+          <button onClick={handleSave} disabled={!canSave || saving} className="btn-primary">
+            {saving ? 'Salvando...' : 'Salvar'}
           </button>
         </div>
       </div>
