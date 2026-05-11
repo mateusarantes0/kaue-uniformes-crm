@@ -52,10 +52,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   loading: true,
 
   initialize: async () => {
-    // onAuthStateChange is the authoritative source of session state.
-    // It fires INITIAL_SESSION immediately on subscription — reliable on page refresh
-    // even when the token needs to be silently refreshed (getSession can return null then).
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    // getSession() reads from localStorage and handles silent token refresh.
+    // Wrapped in try-catch so a network error during refresh never causes infinite loading.
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
       if (session?.user) {
         const [profile, allProfiles] = await Promise.all([
           fetchProfile(session.user.id),
@@ -63,14 +63,31 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         ])
         if (profile) {
           set({ user: profile, users: allProfiles, loading: false })
-          // Only (re)load data stores on actual sign-in events, not on silent token refreshes
-          if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-            await loadAllStores()
-          }
+          await loadAllStores()
         } else {
-          set({ user: null, users: [], loading: false })
+          set({ user: null, loading: false })
         }
       } else {
+        set({ user: null, loading: false })
+      }
+    } catch {
+      set({ user: null, loading: false })
+    }
+
+    // Keep auth state in sync for subsequent events (login, logout, token refresh)
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        try {
+          const [profile, allProfiles] = await Promise.all([
+            fetchProfile(session.user.id),
+            fetchAllProfiles(),
+          ])
+          if (profile) {
+            set({ user: profile, users: allProfiles, loading: false })
+            await loadAllStores()
+          }
+        } catch { /* ignore — loading already resolved */ }
+      } else if (event === 'SIGNED_OUT') {
         set({ user: null, users: [], loading: false })
       }
     })
