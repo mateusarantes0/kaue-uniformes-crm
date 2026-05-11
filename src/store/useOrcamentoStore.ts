@@ -3,6 +3,7 @@ import toast from 'react-hot-toast'
 import { Orcamento, Coluna, TipoObjecao, COLUNA_LABELS, ItemAcao, HistoricoItem } from '../types'
 import { nowISO } from '../utils'
 import { useAuthStore } from './useAuthStore'
+import { useFiltrosStore } from './useFiltrosStore'
 import { supabase } from '../lib/supabase'
 
 // --------------- helpers ---------------
@@ -20,12 +21,13 @@ function rowToOrcamento(row: Record<string, unknown>): Orcamento {
     ultimoContatoEm: row.ultimo_contato_em as string | undefined,
     orcamentoEnviadoEm: row.orcamento_enviado_em as string | undefined,
     dataFechamentoEsperada: row.data_fechamento_esperada as string | undefined,
-    proximaAtividade: row.proxima_atividade as string | undefined,
+    proximaAtividadeTitulo: row.proxima_atividade_titulo as string | undefined,
+    proximaAtividadeData: row.proxima_atividade_data as string | undefined,
     vendidoEm: row.vendido_em as string | undefined,
     dataPerda: row.data_perda as string | undefined,
     dataEntrega: row.data_entrega as string | undefined,
     origem: row.origem as Orcamento['origem'],
-    campanhasOfertadas: (row.campanhas_ofertadas as Orcamento['campanhasOfertadas']) ?? [],
+    campanhaOfertada: row.campanha_ofertada as Orcamento['campanhaOfertada'],
     fechouPela: row.fechou_pela as Orcamento['fechouPela'],
     tipoObjecao: row.tipo_objecao as TipoObjecao | undefined,
     observacaoObjecao: row.observacao_objecao as string | undefined,
@@ -52,12 +54,13 @@ function orcamentoToUpdateRow(orc: Orcamento, userId: string): Record<string, un
     ultimo_contato_em: orc.ultimoContatoEm ?? null,
     orcamento_enviado_em: orc.orcamentoEnviadoEm ?? null,
     data_fechamento_esperada: orc.dataFechamentoEsperada ?? null,
-    proxima_atividade: orc.proximaAtividade ?? null,
+    proxima_atividade_titulo: orc.proximaAtividadeTitulo ?? null,
+    proxima_atividade_data: orc.proximaAtividadeData ?? null,
     vendido_em: orc.vendidoEm ?? null,
     data_perda: orc.dataPerda ?? null,
     data_entrega: orc.dataEntrega ?? null,
     origem: orc.origem ?? null,
-    campanhas_ofertadas: orc.campanhasOfertadas ?? [],
+    campanha_ofertada: orc.campanhaOfertada ?? null,
     fechou_pela: orc.fechouPela ?? null,
     tipo_objecao: orc.tipoObjecao ?? null,
     observacao_objecao: orc.observacaoObjecao ?? null,
@@ -73,6 +76,37 @@ function computeFiltered(orcamentos: Orcamento[]): Orcamento[] {
   const { user } = useAuthStore.getState()
   if (!user || user.role === 'admin') return orcamentos
   return orcamentos.filter((o) => (o.ownerId ?? '') === user.id)
+}
+
+function computeFiltradosComBusca(orcamentos: Orcamento[]): Orcamento[] {
+  let result = computeFiltered(orcamentos)
+  const { busca, responsaveisIds, colunas, origem, campanhaOfertada, dataInicio, dataFim } =
+    useFiltrosStore.getState()
+
+  if (busca) {
+    const q = busca.toLowerCase()
+    result = result.filter((o) => o.nome.toLowerCase().includes(q))
+  }
+  if (responsaveisIds.length > 0) {
+    result = result.filter((o) => responsaveisIds.includes(o.responsavelId))
+  }
+  if (colunas.length > 0) {
+    result = result.filter((o) => colunas.includes(o.coluna))
+  }
+  if (origem) {
+    result = result.filter((o) => o.origem === origem)
+  }
+  if (campanhaOfertada) {
+    result = result.filter((o) => o.campanhaOfertada === campanhaOfertada)
+  }
+  if (dataInicio) {
+    result = result.filter((o) => o.criadoEm >= dataInicio)
+  }
+  if (dataFim) {
+    result = result.filter((o) => o.criadoEm <= dataFim + 'T23:59:59')
+  }
+
+  return result
 }
 
 function nextId(orcamentos: Orcamento[]): string {
@@ -96,6 +130,7 @@ type AddData = Omit<Orcamento, 'id' | 'criadoEm' | 'atualizadoEm' | 'historico' 
 interface OrcamentoStore {
   orcamentos: Orcamento[]
   orcamentosFiltrados: Orcamento[]
+  orcamentosFiltradosComBusca: Orcamento[]
   modalCriar: boolean
   modalEditar: Orcamento | null
   modalDetalheId: string | null
@@ -114,6 +149,7 @@ interface OrcamentoStore {
   removePessoaFromAll: (pessoaId: string) => void
   removeEmpresaFromAll: (empresaId: string) => void
   refreshFiltrados: () => void
+  refreshFiltradosComBusca: () => void
 
   setModalCriar: (open: boolean) => void
   setModalEditar: (o: Orcamento | null) => void
@@ -124,6 +160,7 @@ interface OrcamentoStore {
 export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
   orcamentos: [],
   orcamentosFiltrados: [],
+  orcamentosFiltradosComBusca: [],
   modalCriar: false,
   modalEditar: null,
   modalDetalheId: null,
@@ -136,7 +173,11 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
       .order('criado_em', { ascending: false })
     if (error) { console.error(error); return }
     const orcamentos = (data as Record<string, unknown>[]).map(rowToOrcamento)
-    set({ orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) })
+    set({
+      orcamentos,
+      orcamentosFiltrados: computeFiltered(orcamentos),
+      orcamentosFiltradosComBusca: computeFiltradosComBusca(orcamentos),
+    })
 
     supabase
       .channel('orcamentos-rt')
@@ -157,7 +198,6 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
       criadoPor: userId,
       atualizadoPor: userId,
       ownerId: userId,
-      campanhasOfertadas: data.campanhasOfertadas ?? [],
       contatosIds: data.contatosIds ?? [],
       historico: [{ data: now, texto: 'Orçamento criado', usuarioId: userId }],
       itensAcao: [],
@@ -175,10 +215,11 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
       ultimo_contato_em: orcamento.ultimoContatoEm ?? null,
       orcamento_enviado_em: orcamento.orcamentoEnviadoEm ?? null,
       data_fechamento_esperada: orcamento.dataFechamentoEsperada ?? null,
-      proxima_atividade: orcamento.proximaAtividade ?? null,
+      proxima_atividade_titulo: orcamento.proximaAtividadeTitulo ?? null,
+      proxima_atividade_data: orcamento.proximaAtividadeData ?? null,
       data_entrega: orcamento.dataEntrega ?? null,
       origem: orcamento.origem ?? null,
-      campanhas_ofertadas: orcamento.campanhasOfertadas,
+      campanha_ofertada: orcamento.campanhaOfertada ?? null,
       fechou_pela: orcamento.fechouPela ?? null,
       cenario_atual: orcamento.cenarioAtual ?? null,
       itens_acao: [],
@@ -196,7 +237,11 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
 
     set((s) => {
       const orcamentos = [orcamento, ...s.orcamentos]
-      return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
+      return {
+        orcamentos,
+        orcamentosFiltrados: computeFiltered(orcamentos),
+        orcamentosFiltradosComBusca: computeFiltradosComBusca(orcamentos),
+      }
     })
   },
 
@@ -224,7 +269,11 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
 
     set((s) => {
       const orcamentos = s.orcamentos.map((o) => o.id === id ? updated : o)
-      return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
+      return {
+        orcamentos,
+        orcamentosFiltrados: computeFiltered(orcamentos),
+        orcamentosFiltradosComBusca: computeFiltradosComBusca(orcamentos),
+      }
     })
   },
 
@@ -256,7 +305,12 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
 
     set((s) => {
       const orcamentos = s.orcamentos.map((o) => o.id === id ? updated : o)
-      return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos), pendingMove: null }
+      return {
+        orcamentos,
+        orcamentosFiltrados: computeFiltered(orcamentos),
+        orcamentosFiltradosComBusca: computeFiltradosComBusca(orcamentos),
+        pendingMove: null,
+      }
     })
   },
 
@@ -265,7 +319,11 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
     if (error) { toast.error('Erro ao deletar orçamento'); return }
     set((s) => {
       const orcamentos = s.orcamentos.filter((o) => o.id !== id)
-      return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
+      return {
+        orcamentos,
+        orcamentosFiltrados: computeFiltered(orcamentos),
+        orcamentosFiltradosComBusca: computeFiltradosComBusca(orcamentos),
+      }
     })
   },
 
@@ -294,7 +352,11 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
 
     set((s) => {
       const orcamentos = s.orcamentos.map((o) => o.id === id ? updated : o)
-      return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
+      return {
+        orcamentos,
+        orcamentosFiltrados: computeFiltered(orcamentos),
+        orcamentosFiltradosComBusca: computeFiltradosComBusca(orcamentos),
+      }
     })
   },
 
@@ -328,7 +390,12 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
 
     set((s) => {
       const orcamentos = s.orcamentos.map((o) => o.id === id ? updated : o)
-      return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos), pendingMove: null }
+      return {
+        orcamentos,
+        orcamentosFiltrados: computeFiltered(orcamentos),
+        orcamentosFiltradosComBusca: computeFiltradosComBusca(orcamentos),
+        pendingMove: null,
+      }
     })
   },
 
@@ -351,7 +418,11 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
       const orcamentos = s.orcamentos.map((o) =>
         o.id === orcamentoId ? { ...o, itensAcao } : o
       )
-      return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
+      return {
+        orcamentos,
+        orcamentosFiltrados: computeFiltered(orcamentos),
+        orcamentosFiltradosComBusca: computeFiltradosComBusca(orcamentos),
+      }
     })
   },
 
@@ -374,7 +445,11 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
       const orcamentos = s.orcamentos.map((o) =>
         o.id === orcamentoId ? { ...o, itensAcao } : o
       )
-      return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
+      return {
+        orcamentos,
+        orcamentosFiltrados: computeFiltered(orcamentos),
+        orcamentosFiltradosComBusca: computeFiltradosComBusca(orcamentos),
+      }
     })
   },
 
@@ -395,33 +470,52 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
       const orcamentos = s.orcamentos.map((o) =>
         o.id === orcamentoId ? { ...o, itensAcao } : o
       )
-      return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
+      return {
+        orcamentos,
+        orcamentosFiltrados: computeFiltered(orcamentos),
+        orcamentosFiltradosComBusca: computeFiltradosComBusca(orcamentos),
+      }
     })
   },
 
-  // Local state only — DB cascade handles empresa_id via ON DELETE SET NULL
   removeEmpresaFromAll: (empresaId) => {
     set((s) => {
       const orcamentos = s.orcamentos.map((o) => ({
         ...o,
         empresaId: o.empresaId === empresaId ? undefined : o.empresaId,
       }))
-      return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
+      return {
+        orcamentos,
+        orcamentosFiltrados: computeFiltered(orcamentos),
+        orcamentosFiltradosComBusca: computeFiltradosComBusca(orcamentos),
+      }
     })
   },
 
-  // Local state only — DB is updated via updateOrcamento in deletePessoa
   removePessoaFromAll: (pessoaId) => {
     set((s) => {
       const orcamentos = s.orcamentos.map((o) => ({
         ...o,
         contatosIds: o.contatosIds.filter((id) => id !== pessoaId),
       }))
-      return { orcamentos, orcamentosFiltrados: computeFiltered(orcamentos) }
+      return {
+        orcamentos,
+        orcamentosFiltrados: computeFiltered(orcamentos),
+        orcamentosFiltradosComBusca: computeFiltradosComBusca(orcamentos),
+      }
     })
   },
 
-  refreshFiltrados: () => set((s) => ({ orcamentosFiltrados: computeFiltered(s.orcamentos) })),
+  refreshFiltrados: () =>
+    set((s) => ({
+      orcamentosFiltrados: computeFiltered(s.orcamentos),
+      orcamentosFiltradosComBusca: computeFiltradosComBusca(s.orcamentos),
+    })),
+
+  refreshFiltradosComBusca: () =>
+    set((s) => ({
+      orcamentosFiltradosComBusca: computeFiltradosComBusca(s.orcamentos),
+    })),
 
   setModalCriar: (open) => set({ modalCriar: open }),
   setModalEditar: (o) => set({ modalEditar: o }),
@@ -431,4 +525,8 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
 
 useAuthStore.subscribe(() => {
   useOrcamentoStore.getState().refreshFiltrados()
+})
+
+useFiltrosStore.subscribe(() => {
+  useOrcamentoStore.getState().refreshFiltradosComBusca()
 })

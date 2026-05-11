@@ -10,60 +10,9 @@ import {
 import { ModalShell, Field } from './CreateModal'
 import { SearchableSelect, SearchableItem } from '../ui/SearchableSelect'
 import { CurrencyInput } from '../ui/CurrencyInput'
+import { formatDateTime } from '../../utils'
 
 const COLUNA_OPTIONS: Coluna[] = ['lead', 'qualificacao', 'orcamento_enviado', 'negociacao', 'aguardando']
-
-function MultiCheckList({
-  values,
-  options,
-  onChange,
-  searchable,
-}: {
-  values: string[]
-  options: { value: string; label: string }[]
-  onChange: (v: string[]) => void
-  searchable?: boolean
-}) {
-  const [search, setSearch] = useState('')
-  const filtered = searchable
-    ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
-    : options
-
-  return (
-    <div>
-      {searchable && (
-        <input
-          className="input mb-2 text-xs"
-          placeholder="Buscar..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      )}
-      <div className="max-h-36 overflow-y-auto space-y-0.5 border border-slate-700 rounded-lg p-1.5">
-        {filtered.map((o) => (
-          <label
-            key={o.value}
-            className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-700/50 cursor-pointer"
-          >
-            <input
-              type="checkbox"
-              checked={values.includes(o.value)}
-              onChange={(e) =>
-                onChange(
-                  e.target.checked
-                    ? [...values, o.value]
-                    : values.filter((v) => v !== o.value)
-                )
-              }
-              className="accent-amber-500 w-3.5 h-3.5 flex-shrink-0"
-            />
-            <span className="text-xs text-slate-300">{o.label}</span>
-          </label>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 export function OrcamentoModal() {
   const modalCriar        = useOrcamentoStore((s) => s.modalCriar)
@@ -102,9 +51,10 @@ export function OrcamentoModal() {
   const [ultimoContatoEm, setUltimoContatoEm]       = useState(o?.ultimoContatoEm?.split('T')[0] ?? '')
   const [orcamentoEnviadoEm, setOrcamentoEnviadoEm] = useState(o?.orcamentoEnviadoEm ?? '')
   const [dataFechamentoEsperada, setDataFechamentoEsperada] = useState(o?.dataFechamentoEsperada ?? '')
-  const [proximaAtividade, setProximaAtividade]     = useState(o?.proximaAtividade ?? '')
+  const [proximaAtividadeTitulo, setProximaAtividadeTitulo] = useState(o?.proximaAtividadeTitulo ?? '')
+  const [proximaAtividadeData, setProximaAtividadeData]     = useState(o?.proximaAtividadeData ?? '')
   const [dataEntrega, setDataEntrega]               = useState(o?.dataEntrega ?? '')
-  const [campanhasOfertadas, setCampanhasOfertadas] = useState<Campanha[]>(o?.campanhasOfertadas ?? [])
+  const [campanhaOfertada, setCampanhaOfertada]     = useState<Campanha | ''>(o?.campanhaOfertada ?? '')
   const [fechouPela, setFechouPela]                 = useState<Campanha | ''>(o?.fechouPela ?? '')
 
   // Tab 3
@@ -135,9 +85,10 @@ export function OrcamentoModal() {
       ultimoContatoEm: ultimoContatoEm || undefined,
       orcamentoEnviadoEm: orcamentoEnviadoEm || undefined,
       dataFechamentoEsperada: dataFechamentoEsperada || undefined,
-      proximaAtividade: proximaAtividade || undefined,
+      proximaAtividadeTitulo: proximaAtividadeTitulo || undefined,
+      proximaAtividadeData: proximaAtividadeData || undefined,
       dataEntrega: dataEntrega || undefined,
-      campanhasOfertadas,
+      campanhaOfertada: (campanhaOfertada as Campanha) || undefined,
       fechouPela: (fechouPela as Campanha) || undefined,
       cenarioAtual: cenarioAtual || undefined,
     }
@@ -187,9 +138,16 @@ export function OrcamentoModal() {
   const origemOptions   = (Object.entries(ORIGEM_LABELS) as [Origem, string][]).map(([v, l]) => ({ value: v, label: l }))
   const campanhaOptions = (Object.entries(CAMPANHA_LABELS) as [Campanha, string][]).map(([v, l]) => ({ value: v, label: l }))
   const showFechouPela  = coluna === 'vendido' || coluna === 'sucesso'
+  const userName = (id: string) => users.find((u) => u.id === id)?.name ?? '—'
 
   return (
     <ModalShell title={isEdit ? `Editar: ${o?.nome}` : 'Novo Orçamento'} onClose={close} wide>
+      {isEdit && o && (
+        <div className="text-xs text-slate-500 mb-3 flex flex-wrap gap-x-5 gap-y-0.5 -mt-1">
+          <span>Criado {formatDateTime(o.criadoEm)} por {userName(o.criadoPor)}</span>
+          <span>Atualizado {formatDateTime(o.atualizadoEm)} por {userName(o.atualizadoPor)}</span>
+        </div>
+      )}
       {/* Tabs */}
       <div className="flex border-b border-slate-700 mb-4">
         {(['Identificação', 'Comercial', 'Detalhes'] as const).map((label, i) => (
@@ -309,15 +267,19 @@ export function OrcamentoModal() {
               <input className="input" type="date" value={dataEntrega} onChange={(e) => setDataEntrega(e.target.value)} />
             </Field>
           </div>
-          <Field label="Próxima Atividade">
-            <input className="input" value={proximaAtividade} onChange={(e) => setProximaAtividade(e.target.value)} placeholder="Ex: Ligar amanhã às 14h" />
-          </Field>
-          <Field label="Campanhas Ofertadas">
-            <MultiCheckList
-              values={campanhasOfertadas}
-              options={campanhaOptions}
-              onChange={(v) => setCampanhasOfertadas(v as Campanha[])}
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Próxima Atividade">
+              <input className="input" value={proximaAtividadeTitulo} onChange={(e) => setProximaAtividadeTitulo(e.target.value)} placeholder="Ex: Ligar amanhã" />
+            </Field>
+            <Field label="Data da Atividade">
+              <input className="input" type="date" value={proximaAtividadeData} onChange={(e) => setProximaAtividadeData(e.target.value)} />
+            </Field>
+          </div>
+          <Field label="Campanha Ofertada">
+            <select className="input" value={campanhaOfertada} onChange={(e) => setCampanhaOfertada(e.target.value as Campanha | '')}>
+              <option value="">— Nenhuma —</option>
+              {campanhaOptions.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+            </select>
           </Field>
           {showFechouPela && (
             <Field label="Fechou pela Campanha">

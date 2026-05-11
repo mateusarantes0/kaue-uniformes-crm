@@ -9,6 +9,7 @@ import {
 } from '../../types'
 import { ModalShell, Field, Section } from './CreateModal'
 import { VinculosSection } from '../empresa/VinculosSection'
+import { formatDateTime } from '../../utils'
 
 interface Props {
   empresa?: Empresa
@@ -84,9 +85,17 @@ export function EmpresaModal({ empresa, onClose, onCreated }: Props) {
     setSaving(false)
   }
 
+  const userName = (id: string) => users.find((u) => u.id === id)?.name ?? '—'
+
   return (
     <ModalShell title={isEdit ? `Editar: ${e?.nome}` : 'Nova Empresa'} onClose={onClose} wide>
       <div className="space-y-3">
+        {isEdit && e && (
+          <div className="text-xs text-slate-500 flex flex-wrap gap-x-5 gap-y-0.5 -mt-1 mb-1">
+            <span>Criado {formatDateTime(e.criadoEm)} por {userName(e.criadoPor)}</span>
+            <span>Atualizado {formatDateTime(e.atualizadoEm)} por {userName(e.atualizadoPor)}</span>
+          </div>
+        )}
         <Section label="Identificação" />
         <Field label="Nome *">
           <input autoFocus className="input" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome fantasia" />

@@ -8,10 +8,11 @@ import { useAuthStore } from '../store/useAuthStore'
 import { ChangePasswordModal } from './ChangePasswordModal'
 import { EntityType } from '../types'
 
-const TABS: { id: EntityType; label: string; emoji: string }[] = [
-  { id: 'orcamento', label: 'Orçamentos', emoji: '📋' },
-  { id: 'pessoa',    label: 'Pessoas',    emoji: '👤' },
-  { id: 'empresa',   label: 'Empresas',   emoji: '🏢' },
+const TABS_BASE: { id: EntityType; label: string; emoji: string; adminOnly?: boolean }[] = [
+  { id: 'orcamento',  label: 'Orçamentos', emoji: '📋' },
+  { id: 'pessoa',     label: 'Pessoas',    emoji: '👤' },
+  { id: 'empresa',    label: 'Empresas',   emoji: '🏢' },
+  { id: 'relatorios', label: 'Relatórios', emoji: '📊', adminOnly: true },
 ]
 
 export function Header() {
@@ -25,6 +26,8 @@ export function Header() {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
 
+  const TABS = TABS_BASE.filter((t) => !t.adminOnly || user?.role === 'admin')
+
   const [changePwOpen, setChangePwOpen] = useState(false)
 
   const handleLogout = () => {
@@ -35,13 +38,14 @@ export function Header() {
   const handleNovo = () => {
     if (entity === 'orcamento') setModalCriarOrc(true)
     else if (entity === 'pessoa') setModalCriarPes(true)
-    else setModalCriarEmp(true)
+    else if (entity === 'empresa') setModalCriarEmp(true)
   }
 
   const NOVO_LABEL: Record<EntityType, string> = {
-    orcamento: 'Novo Orçamento',
-    pessoa:    'Nova Pessoa',
-    empresa:   'Nova Empresa',
+    orcamento:  'Novo Orçamento',
+    pessoa:     'Nova Pessoa',
+    empresa:    'Nova Empresa',
+    relatorios: '',
   }
 
   return (
@@ -101,14 +105,16 @@ export function Header() {
                 </button>
               </>
             )}
-            <button
-              onClick={handleNovo}
-              className="bg-accent hover:bg-accent-light text-white font-semibold text-sm px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-            >
-              <span className="text-base leading-none">+</span>
-              <span className="hidden sm:inline">{NOVO_LABEL[entity]}</span>
-              <span className="sm:hidden">Novo</span>
-            </button>
+            {entity !== 'relatorios' && (
+              <button
+                onClick={handleNovo}
+                className="bg-accent hover:bg-accent-light text-white font-semibold text-sm px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+              >
+                <span className="text-base leading-none">+</span>
+                <span className="hidden sm:inline">{NOVO_LABEL[entity]}</span>
+                <span className="sm:hidden">Novo</span>
+              </button>
+            )}
           </div>
         </div>
       </header>

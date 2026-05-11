@@ -7,10 +7,10 @@ import { usePessoaStore } from './store/usePessoaStore'
 import { useEmpresaStore } from './store/useEmpresaStore'
 import { Header } from './components/Header'
 import { Dashboard } from './components/Dashboard'
-import { AdminDashboard } from './components/AdminDashboard'
 import { Board } from './components/Board'
 import { PessoaList } from './components/PessoaList'
 import { EmpresaList } from './components/EmpresaList'
+import { RelatoriosPage } from './components/RelatoriosPage'
 import { Footer } from './components/Footer'
 import { LoginPage } from './components/LoginPage'
 import { OrcamentoModal } from './components/modals/OrcamentoModal'
@@ -18,6 +18,7 @@ import { OrcamentoDetalhe } from './components/modals/OrcamentoDetalhe'
 import { ObjecaoModal } from './components/modals/LossModal'
 import { PessoaModal } from './components/modals/PessoaModal'
 import { EmpresaModal } from './components/modals/EmpresaModal'
+import { FiltrosOrcamentoModal } from './components/modals/FiltrosOrcamentoModal'
 
 const toastStyle = { background: '#1E293B', color: '#fff', border: '1px solid #334155' }
 
@@ -71,13 +72,14 @@ export default function App() {
 
       {entity === 'orcamento' && (
         <>
-          {user.role === 'admin' && <AdminDashboard />}
           <Dashboard />
           <main className="flex-1 overflow-hidden">
             <Board />
           </main>
         </>
       )}
+
+      {entity === 'relatorios' && <RelatoriosPage />}
 
       {entity === 'pessoa' && (
         <main className="flex-1 overflow-auto">
@@ -92,6 +94,8 @@ export default function App() {
       )}
 
       <Footer />
+
+      <FiltrosOrcamentoModal />
 
       {(orcModalCriar || orcModalEditar) && <OrcamentoModal />}
       {orcDetalheId && <OrcamentoDetalhe />}

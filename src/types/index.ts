@@ -1,7 +1,7 @@
 // ============================================================
 // NAVEGAÇÃO
 // ============================================================
-export type EntityType = 'orcamento' | 'pessoa' | 'empresa'
+export type EntityType = 'orcamento' | 'pessoa' | 'empresa' | 'relatorios'
 
 // ============================================================
 // ENUMS COMPARTILHADOS
@@ -65,12 +65,13 @@ export interface Orcamento {
   ultimoContatoEm?: string
   orcamentoEnviadoEm?: string
   dataFechamentoEsperada?: string
-  proximaAtividade?: string
+  proximaAtividadeTitulo?: string
+  proximaAtividadeData?: string
   vendidoEm?: string
   dataPerda?: string
   dataEntrega?: string
   origem?: Origem
-  campanhasOfertadas: Campanha[]
+  campanhaOfertada?: Campanha
   fechouPela?: Campanha
   tipoObjecao?: TipoObjecao
   observacaoObjecao?: string

@@ -8,7 +8,7 @@ import {
   TIPO_CONTATO_LABELS, CARGO_LABELS, GRAU_INFLUENCIA_LABELS, SEXO_LABELS, SIM_NAO_NA_LABELS,
 } from '../../types'
 import { ModalShell, Field, Section } from './CreateModal'
-import { maskWhatsApp } from '../../utils'
+import { maskWhatsApp, formatDateTime } from '../../utils'
 import { SearchableSelect, SearchableItem } from '../ui/SearchableSelect'
 
 interface Props {
@@ -88,9 +88,17 @@ export function PessoaModal({ pessoa, onClose, onCreated }: Props) {
     setSaving(false)
   }
 
+  const userName = (id: string) => users.find((u) => u.id === id)?.name ?? '—'
+
   return (
     <ModalShell title={isEdit ? `Editar: ${p?.nome}` : 'Nova Pessoa'} onClose={onClose} wide>
       <div className="space-y-3">
+        {isEdit && p && (
+          <div className="text-xs text-slate-500 flex flex-wrap gap-x-5 gap-y-0.5 -mt-1 mb-1">
+            <span>Criado {formatDateTime(p.criadoEm)} por {userName(p.criadoPor)}</span>
+            <span>Atualizado {formatDateTime(p.atualizadoEm)} por {userName(p.atualizadoPor)}</span>
+          </div>
+        )}
         <Section label="Identificação" />
         <Field label="Nome *">
           <input autoFocus className="input" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome completo" />

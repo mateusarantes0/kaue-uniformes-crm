@@ -1,18 +1,16 @@
 import { useMemo } from 'react'
 import { useOrcamentoStore } from '../store/useOrcamentoStore'
+import { useAuthStore } from '../store/useAuthStore'
 import { formatCurrency } from '../utils'
-
-const EMPLOYEES = [
-  { id: 'noemi', name: 'Noemi' },
-  { id: 'dione', name: 'Dione' },
-]
 
 export function AdminDashboard() {
   const orcamentos = useOrcamentoStore((s) => s.orcamentos)
+  const allUsers = useAuthStore((s) => s.users)
+  const employees = useMemo(() => allUsers.filter((u) => u.role !== 'admin'), [allUsers])
 
   const stats = useMemo(() =>
-    EMPLOYEES.map(({ id, name }) => {
-      const proprios    = orcamentos.filter((o) => (o.ownerId ?? 'admin') === id)
+    employees.map(({ id, name }) => {
+      const proprios    = orcamentos.filter((o) => o.responsavelId === id || o.ownerId === id)
       const terminal    = new Set(['perdido', 'vendido', 'sucesso', 'lixo'])
       const ativos      = proprios.filter((o) => !terminal.has(o.coluna))
       const emOrcamento = proprios.filter((o) => o.coluna === 'orcamento_enviado')
@@ -29,7 +27,7 @@ export function AdminDashboard() {
 
       return { name, ativos: ativos.length, totalOrcamento, totalVendido, conversao }
     }),
-  [orcamentos])
+  [orcamentos, employees])
 
   return (
     <div className="px-4 pt-3 pb-1">

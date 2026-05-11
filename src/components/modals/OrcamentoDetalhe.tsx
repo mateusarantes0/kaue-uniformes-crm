@@ -7,7 +7,8 @@ import {
   Coluna, TipoObjecao,
   ORIGEM_LABELS, CAMPANHA_LABELS, TIPO_OBJECAO_LABELS,
 } from '../../types'
-import { formatCurrency, diasDesde } from '../../utils'
+import { formatCurrency, diasDesde, formatDateTime } from '../../utils'
+import { useAuthStore } from '../../store/useAuthStore'
 import { StageBadge } from '../orcamento/StageBadge'
 import { ContactCard } from '../orcamento/ContactCard'
 import { DateRow } from '../orcamento/DateRow'
@@ -43,6 +44,7 @@ export function OrcamentoDetalhe() {
   const setEmpresaModalEditar = useEmpresaStore((s) => s.setModalEditar)
   const pessoas              = usePessoaStore((s) => s.pessoas)
   const setPessoaModalEditar  = usePessoaStore((s) => s.setModalEditar)
+  const users                = useAuthStore((s) => s.users)
 
   const [showPerdida,  setShowPerdida]  = useState(false)
   const [perdidaTipo,  setPerdidaTipo]  = useState<TipoObjecao>('preco')
@@ -66,6 +68,7 @@ export function OrcamentoDetalhe() {
   const diasUltimoContato = diasDesde(o.ultimoContatoEm ?? o.criadoEm)
 
   const close = () => setModalDetalheId(null)
+  const userName = (id: string) => users.find((u) => u.id === id)?.name ?? '—'
 
   const handleGanha = () => {
     marcarComoGanha(o.id)
@@ -203,7 +206,8 @@ export function OrcamentoDetalhe() {
               <DateRow label="Último contato em"   value={o.ultimoContatoEm} />
               <DateRow label="Orçamento enviado em" value={o.orcamentoEnviadoEm} />
               <DateRow label="Fechamento esperado"  value={o.dataFechamentoEsperada} />
-              <DateRow label="Próxima atividade"    value={o.proximaAtividade} isText accent />
+              <DateRow label="Próxima atividade"    value={o.proximaAtividadeTitulo} isText accent />
+              <DateRow label="Data da atividade"    value={o.proximaAtividadeData} accent />
               {(o.coluna === 'vendido' || o.coluna === 'sucesso') && (
                 <>
                   <DateRow label="Vendido em"      value={o.vendidoEm} />
@@ -228,9 +232,9 @@ export function OrcamentoDetalhe() {
               )}
             </div>
 
-            {(o.origem || o.campanhasOfertadas.length > 0) && (
+            {(o.origem || o.campanhaOfertada) && (
               <div className="mt-6">
-                <SectionTitle>Origem e Campanhas</SectionTitle>
+                <SectionTitle>Origem e Campanha</SectionTitle>
                 {o.origem && (
                   <div className="mb-3">
                     <p className="text-[11px] text-slate-500 mb-1.5">Origem</p>
@@ -240,17 +244,13 @@ export function OrcamentoDetalhe() {
                     </span>
                   </div>
                 )}
-                {o.campanhasOfertadas.length > 0 && (
+                {o.campanhaOfertada && (
                   <div className="mb-3">
-                    <p className="text-[11px] text-slate-500 mb-1.5">Campanhas ofertadas</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {o.campanhasOfertadas.map((c) => (
-                        <span key={c} className="inline-block px-2.5 py-1 rounded-md text-[12px] font-medium
-                                                  bg-orange-500/10 text-orange-300 border border-orange-500/25">
-                          {CAMPANHA_LABELS[c]}
-                        </span>
-                      ))}
-                    </div>
+                    <p className="text-[11px] text-slate-500 mb-1.5">Campanha ofertada</p>
+                    <span className="inline-block px-2.5 py-1 rounded-md text-[12px] font-medium
+                                     bg-orange-500/10 text-orange-300 border border-orange-500/25">
+                      {CAMPANHA_LABELS[o.campanhaOfertada]}
+                    </span>
                   </div>
                 )}
                 {o.fechouPela && (
@@ -351,6 +351,11 @@ export function OrcamentoDetalhe() {
 
         {/* ───── FOOTER ───── */}
         <footer className="bg-[#1a2336] border-t border-slate-700 px-6 py-3.5 flex items-center gap-3 flex-shrink-0">
+          <div className="text-[11px] text-slate-500 flex-shrink-0 leading-5 hidden sm:block">
+            <div>Criado {formatDateTime(o.criadoEm)} por {userName(o.criadoPor)}</div>
+            <div>Atualizado {formatDateTime(o.atualizadoEm)} por {userName(o.atualizadoPor)}</div>
+          </div>
+
           <button
             onClick={handleDelete}
             className="px-3.5 py-2.5 rounded-lg border border-red-500/40 text-red-300
