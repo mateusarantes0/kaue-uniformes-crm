@@ -52,34 +52,19 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   loading: true,
 
   initialize: async () => {
-    // getSession() reads from localStorage and handles silent token refresh.
-    // Wrapped in try-catch so a network error during refresh never causes infinite loading.
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user) {
-        const [profile, allProfiles] = await Promise.all([
-          fetchProfile(session.user.id),
-          fetchAllProfiles(),
-        ])
-        if (profile) {
-          set({ user: profile, users: allProfiles, loading: false })
-          await loadAllStores()
-        } else {
-          set({ user: null, loading: false })
-        }
-      } else {
-        set({ user: null, loading: false })
-      }
-    } catch {
-      set({ user: null, loading: false })
-    }
-
-    // Keep auth state in sync for subsequent events (login, logout)
-    // Skip SIGNED_IN only when it is the *same* user (token refresh, changePassword re-auth).
-    // Allow it through for a different user so a new login always reflects the correct profile.
+    // Rely entirely on onAuthStateChange. INITIAL_SESSION fires immediately on registration
+    // with the real, server-refreshed session — more reliable than getSession() cache.
     supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        if (get().user?.id === session.user.id) return
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+        if (!session?.user) {
+          // No session (cold start or already signed out)
+          set({ user: null, users: [], loading: false })
+          return
+        }
+        // For SIGNED_IN: skip if it's the same user re-authenticating (token refresh,
+        // changePassword re-auth). INITIAL_SESSION always runs so the profile is correct.
+        if (event === 'SIGNED_IN' && get().user?.id === session.user.id) return
+
         try {
           const [profile, allProfiles] = await Promise.all([
             fetchProfile(session.user.id),
@@ -88,11 +73,16 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           if (profile) {
             set({ user: profile, users: allProfiles, loading: false })
             await loadAllStores()
+          } else {
+            set({ user: null, loading: false })
           }
-        } catch { /* ignore — loading already resolved */ }
+        } catch {
+          set({ user: null, loading: false })
+        }
       } else if (event === 'SIGNED_OUT') {
         set({ user: null, users: [], loading: false })
       }
+      // TOKEN_REFRESHED, USER_UPDATED, etc. are intentionally ignored.
     })
   },
 
