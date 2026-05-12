@@ -62,6 +62,7 @@ export interface Orcamento {
   contatosIds: string[]
   coluna: Coluna
   probabilidade?: number
+  probabilidadeEditadaManualmente?: boolean
   ultimoContatoEm?: string
   orcamentoEnviadoEm?: string
   dataFechamentoEsperada?: string
@@ -76,6 +77,12 @@ export interface Orcamento {
   tipoObjecao?: TipoObjecao
   observacaoObjecao?: string
   cenarioAtual?: string
+  produto?: string
+  quantidade?: number
+  dataEntregaDesejada?: string
+  condicaoPagamento?: string
+  justificativaQuantidadeMinima?: string
+  motivoDescarte?: string
   itensAcao: ItemAcao[]
   historico: HistoricoItem[]
   criadoEm: string
@@ -116,6 +123,8 @@ export interface Pessoa {
   grauInfluencia?: GrauInfluencia
   email?: string
   instagram?: string
+  linkedin?: string
+  etiquetas: string[]
   cpf?: string
   dataNascimento?: string
   sexo?: Sexo
@@ -177,8 +186,14 @@ export interface Empresa {
 // ============================================================
 // LABELS
 // ============================================================
+export const PROBABILIDADE_POR_COLUNA: Record<Coluna, number> = {
+  lead: 5, qualificacao: 15, orcamento_enviado: 35, negociacao: 55,
+  objecao: 40, aguardando: 80, vendido: 100, sucesso: 100,
+  perdido: 0, lixo: 0,
+}
+
 export const COLUNA_LABELS: Record<Coluna, string> = {
-  lead: 'Lead',
+  lead: 'Chamada Lead',
   qualificacao: 'Qualificação',
   orcamento_enviado: 'Orçamento Enviado',
   negociacao: 'Negociação',
@@ -365,7 +380,7 @@ export interface ColunaConfig {
 }
 
 export const COLUNAS: ColunaConfig[] = [
-  { id: 'lead',              label: 'Lead',              emoji: '📋', showTotal: false, borderColor: 'border-slate-400'  },
+  { id: 'lead',              label: 'Chamada Lead',      emoji: '📋', showTotal: false, borderColor: 'border-slate-400'  },
   { id: 'qualificacao',      label: 'Qualificação',      emoji: '🎯', showTotal: false, borderColor: 'border-slate-300'  },
   { id: 'orcamento_enviado', label: 'Orçamento Enviado', emoji: '💼', showTotal: true,  borderColor: 'border-amber-400'  },
   { id: 'negociacao',        label: 'Negociação',        emoji: '🤝', showTotal: true,  borderColor: 'border-purple-400' },

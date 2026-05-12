@@ -74,9 +74,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       set({ user: null, loading: false })
     }
 
-    // Keep auth state in sync for subsequent events (login, logout, token refresh)
+    // Keep auth state in sync for subsequent events (login, logout)
+    // Skip SIGNED_IN only when it is the *same* user (token refresh, changePassword re-auth).
+    // Allow it through for a different user so a new login always reflects the correct profile.
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
+        if (get().user?.id === session.user.id) return
         try {
           const [profile, allProfiles] = await Promise.all([
             fetchProfile(session.user.id),

@@ -1,49 +1,114 @@
 import { create } from 'zustand'
-import { Campanha, Coluna, Origem } from '../types'
+
+export type OperadorLogico = 'AND' | 'OR'
+
+export interface Condicao {
+  id: string
+  campo: string
+  valor: string
+}
+
+export interface GrupoCondicoes {
+  id: string
+  operador: OperadorLogico
+  condicoes: Condicao[]
+}
+
+function makeId() {
+  return Math.random().toString(36).slice(2, 9)
+}
 
 interface FiltrosStore {
   busca: string
-  responsaveisIds: string[]
-  colunas: Coluna[]
-  origem: Origem | ''
-  campanhaOfertada: Campanha | ''
+  operadorRaiz: OperadorLogico
+  grupos: GrupoCondicoes[]
   dataInicio: string
   dataFim: string
   filtrosModalOpen: boolean
 
-  update: (patch: Partial<Omit<FiltrosStore, 'update' | 'resetFiltros' | 'hasFiltros'>>) => void
+  update: (patch: Partial<Pick<FiltrosStore, 'busca' | 'operadorRaiz' | 'dataInicio' | 'dataFim' | 'filtrosModalOpen'>>) => void
+  addGrupo: () => void
+  removeGrupo: (id: string) => void
+  setGrupoOperador: (grupoId: string, op: OperadorLogico) => void
+  addCondicao: (grupoId: string) => void
+  removeCondicao: (grupoId: string, condId: string) => void
+  updateCondicao: (grupoId: string, condId: string, patch: Partial<Omit<Condicao, 'id'>>) => void
   resetFiltros: () => void
   hasFiltros: () => boolean
 }
 
-const defaults = {
+const emptyGrupo = (): GrupoCondicoes => ({
+  id: makeId(),
+  operador: 'AND',
+  condicoes: [{ id: makeId(), campo: 'responsavel', valor: '' }],
+})
+
+export const useFiltrosStore = create<FiltrosStore>((set, get) => ({
   busca: '',
-  responsaveisIds: [] as string[],
-  colunas: [] as Coluna[],
-  origem: '' as Origem | '',
-  campanhaOfertada: '' as Campanha | '',
+  operadorRaiz: 'AND',
+  grupos: [],
   dataInicio: '',
   dataFim: '',
   filtrosModalOpen: false,
-}
-
-export const useFiltrosStore = create<FiltrosStore>((set, get) => ({
-  ...defaults,
 
   update: (patch) => set(patch as Partial<FiltrosStore>),
 
-  resetFiltros: () => set({ ...defaults, filtrosModalOpen: get().filtrosModalOpen }),
+  addGrupo: () =>
+    set((s) => ({ grupos: [...s.grupos, emptyGrupo()] })),
+
+  removeGrupo: (id) =>
+    set((s) => ({ grupos: s.grupos.filter((g) => g.id !== id) })),
+
+  setGrupoOperador: (grupoId, op) =>
+    set((s) => ({
+      grupos: s.grupos.map((g) => g.id === grupoId ? { ...g, operador: op } : g),
+    })),
+
+  addCondicao: (grupoId) =>
+    set((s) => ({
+      grupos: s.grupos.map((g) =>
+        g.id === grupoId
+          ? { ...g, condicoes: [...g.condicoes, { id: makeId(), campo: 'responsavel', valor: '' }] }
+          : g
+      ),
+    })),
+
+  removeCondicao: (grupoId, condId) =>
+    set((s) => ({
+      grupos: s.grupos.map((g) =>
+        g.id === grupoId
+          ? { ...g, condicoes: g.condicoes.filter((c) => c.id !== condId) }
+          : g
+      ),
+    })),
+
+  updateCondicao: (grupoId, condId, patch) =>
+    set((s) => ({
+      grupos: s.grupos.map((g) =>
+        g.id === grupoId
+          ? {
+              ...g,
+              condicoes: g.condicoes.map((c) =>
+                c.id === condId ? { ...c, ...patch } : c
+              ),
+            }
+          : g
+      ),
+    })),
+
+  resetFiltros: () =>
+    set((s) => ({
+      busca: '',
+      operadorRaiz: 'AND',
+      grupos: [],
+      dataInicio: '',
+      dataFim: '',
+      filtrosModalOpen: s.filtrosModalOpen,
+    })),
 
   hasFiltros: () => {
-    const { busca, responsaveisIds, colunas, origem, campanhaOfertada, dataInicio, dataFim } = get()
-    return (
-      !!busca ||
-      responsaveisIds.length > 0 ||
-      colunas.length > 0 ||
-      !!origem ||
-      !!campanhaOfertada ||
-      !!dataInicio ||
-      !!dataFim
-    )
+    const { busca, grupos, dataInicio, dataFim } = get()
+    const gruposComCondicoes = grupos.filter((g) => g.condicoes.some((c) => c.valor))
+    return !!busca || gruposComCondicoes.length > 0 || !!dataInicio || !!dataFim
   },
 }))

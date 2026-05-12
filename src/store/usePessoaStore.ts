@@ -4,6 +4,7 @@ import { Pessoa } from '../types'
 import { nowISO } from '../utils'
 import { useAuthStore } from './useAuthStore'
 import { supabase } from '../lib/supabase'
+import { _registerPessoaRef } from './useOrcamentoStore'
 
 // --------------- helpers ---------------
 
@@ -19,6 +20,8 @@ function rowToPessoa(row: Record<string, unknown>): Pessoa {
     grauInfluencia: row.grau_influencia as Pessoa['grauInfluencia'],
     email: row.email as string | undefined,
     instagram: row.instagram as string | undefined,
+    linkedin: row.linkedin as string | undefined,
+    etiquetas: (row.etiquetas as string[]) ?? [],
     cpf: row.cpf as string | undefined,
     dataNascimento: row.data_nascimento as string | undefined,
     sexo: row.sexo as Pessoa['sexo'],
@@ -42,12 +45,8 @@ function computeFiltered(pessoas: Pessoa[]): Pessoa[] {
   return pessoas.filter((p) => p.ownerId === user.id)
 }
 
-function nextId(pessoas: Pessoa[]): string {
-  const nums = pessoas
-    .map((p) => parseInt(p.id.replace('PES-', ''), 10))
-    .filter((n) => !isNaN(n))
-  const max = nums.length > 0 ? Math.max(...nums) : 0
-  return `PES-${String(max + 1).padStart(4, '0')}`
+function nextId(): string {
+  return `PES-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
 }
 
 // --------------- store ---------------
@@ -84,13 +83,6 @@ export const usePessoaStore = create<PessoaStore>((set, get) => ({
     if (error) { console.error(error); return }
     const pessoas = (data as Record<string, unknown>[]).map(rowToPessoa)
     set({ pessoas, pessoasFiltradas: computeFiltered(pessoas) })
-
-    supabase
-      .channel('pessoas-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pessoas' }, () => {
-        get().loadAll()
-      })
-      .subscribe()
   },
 
   addPessoa: async (data) => {
@@ -98,7 +90,7 @@ export const usePessoaStore = create<PessoaStore>((set, get) => ({
     const userId = useAuthStore.getState().user?.id ?? ''
     const pessoa: Pessoa = {
       ...data,
-      id: nextId(get().pessoas),
+      id: nextId(),
       criadoEm: now,
       atualizadoEm: now,
       criadoPor: userId,
@@ -119,6 +111,8 @@ export const usePessoaStore = create<PessoaStore>((set, get) => ({
       grau_influencia: pessoa.grauInfluencia ?? null,
       email: pessoa.email ?? null,
       instagram: pessoa.instagram ?? null,
+      linkedin: pessoa.linkedin ?? null,
+      etiquetas: pessoa.etiquetas ?? [],
       cpf: pessoa.cpf ?? null,
       data_nascimento: pessoa.dataNascimento ?? null,
       sexo: pessoa.sexo ?? null,
@@ -164,6 +158,8 @@ export const usePessoaStore = create<PessoaStore>((set, get) => ({
       grau_influencia: updated.grauInfluencia ?? null,
       email: updated.email ?? null,
       instagram: updated.instagram ?? null,
+      linkedin: updated.linkedin ?? null,
+      etiquetas: updated.etiquetas ?? [],
       cpf: updated.cpf ?? null,
       data_nascimento: updated.dataNascimento ?? null,
       sexo: updated.sexo ?? null,
@@ -210,6 +206,15 @@ export const usePessoaStore = create<PessoaStore>((set, get) => ({
   setModalEditar: (p) => set({ modalEditar: p }),
 }))
 
+_registerPessoaRef(() => usePessoaStore.getState().pessoas as { id: string; etiquetas: string[] }[])
+
 useAuthStore.subscribe(() => {
   usePessoaStore.getState().refreshFiltrados()
 })
+
+supabase
+  .channel('pessoas-rt')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'pessoas' }, () => {
+    usePessoaStore.getState().loadAll()
+  })
+  .subscribe()

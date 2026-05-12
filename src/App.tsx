@@ -16,6 +16,8 @@ import { LoginPage } from './components/LoginPage'
 import { OrcamentoModal } from './components/modals/OrcamentoModal'
 import { OrcamentoDetalhe } from './components/modals/OrcamentoDetalhe'
 import { ObjecaoModal } from './components/modals/LossModal'
+import { GanhoModal } from './components/modals/GanhoModal'
+import { DescarteModal } from './components/modals/DescarteModal'
 import { PessoaModal } from './components/modals/PessoaModal'
 import { EmpresaModal } from './components/modals/EmpresaModal'
 import { FiltrosOrcamentoModal } from './components/modals/FiltrosOrcamentoModal'
@@ -99,7 +101,9 @@ export default function App() {
 
       {(orcModalCriar || orcModalEditar) && <OrcamentoModal />}
       {orcDetalheId && <OrcamentoDetalhe />}
-      {pendingMove && <ObjecaoModal />}
+      {pendingMove && (pendingMove.motivo === 'objecao' || pendingMove.motivo === 'perdido') && <ObjecaoModal />}
+      {pendingMove && pendingMove.motivo === 'ganho' && <GanhoModal />}
+      {pendingMove && pendingMove.motivo === 'lixo' && <DescarteModal />}
 
       {pesModalCriar && (
         <PessoaModal onClose={() => setPesModalCriar(false)} />

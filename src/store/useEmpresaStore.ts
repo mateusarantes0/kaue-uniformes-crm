@@ -4,6 +4,7 @@ import { Empresa } from '../types'
 import { nowISO } from '../utils'
 import { useAuthStore } from './useAuthStore'
 import { supabase } from '../lib/supabase'
+import { _registerEmpresaRef } from './useOrcamentoStore'
 
 // --------------- helpers ---------------
 
@@ -41,12 +42,8 @@ function computeFiltered(empresas: Empresa[]): Empresa[] {
   return empresas.filter((e) => e.ownerId === user.id)
 }
 
-function nextId(empresas: Empresa[]): string {
-  const nums = empresas
-    .map((e) => parseInt(e.id.replace('EMP-', ''), 10))
-    .filter((n) => !isNaN(n))
-  const max = nums.length > 0 ? Math.max(...nums) : 0
-  return `EMP-${String(max + 1).padStart(4, '0')}`
+function nextId(): string {
+  return `EMP-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
 }
 
 // --------------- store ---------------
@@ -84,13 +81,6 @@ export const useEmpresaStore = create<EmpresaStore>((set, get) => ({
     if (error) { console.error(error); return }
     const empresas = (data as Record<string, unknown>[]).map(rowToEmpresa)
     set({ empresas, empresasFiltradas: computeFiltered(empresas) })
-
-    supabase
-      .channel('empresas-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'empresas' }, () => {
-        get().loadAll()
-      })
-      .subscribe()
   },
 
   addEmpresa: async (data) => {
@@ -98,7 +88,7 @@ export const useEmpresaStore = create<EmpresaStore>((set, get) => ({
     const userId = useAuthStore.getState().user?.id ?? ''
     const empresa: Empresa = {
       ...data,
-      id: nextId(get().empresas),
+      id: nextId(),
       criadoEm: now,
       atualizadoEm: now,
       criadoPor: userId,
@@ -212,6 +202,15 @@ export const useEmpresaStore = create<EmpresaStore>((set, get) => ({
   setModalEditar: (e) => set({ modalEditar: e }),
 }))
 
+_registerEmpresaRef(() => useEmpresaStore.getState().empresas as { id: string; tipoCliente?: string; grupoEstrategico?: string; segmento?: string }[])
+
 useAuthStore.subscribe(() => {
   useEmpresaStore.getState().refreshFiltrados()
 })
+
+supabase
+  .channel('empresas-rt')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'empresas' }, () => {
+    useEmpresaStore.getState().loadAll()
+  })
+  .subscribe()

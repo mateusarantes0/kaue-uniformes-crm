@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, KeyboardEvent } from 'react'
 import toast from 'react-hot-toast'
 import { usePessoaStore } from '../../store/usePessoaStore'
 import { useEmpresaStore } from '../../store/useEmpresaStore'
@@ -15,6 +15,22 @@ interface Props {
   pessoa?: Pessoa
   onClose: () => void
   onCreated?: (p: Pessoa) => void
+}
+
+function tagColor(s: string): { bg: string; text: string } {
+  let hash = 0
+  for (let i = 0; i < s.length; i++) hash = s.charCodeAt(i) + ((hash << 5) - hash)
+  const palette = [
+    { bg: 'bg-blue-900/60', text: 'text-blue-300' },
+    { bg: 'bg-green-900/60', text: 'text-green-300' },
+    { bg: 'bg-purple-900/60', text: 'text-purple-300' },
+    { bg: 'bg-amber-900/60', text: 'text-amber-300' },
+    { bg: 'bg-pink-900/60', text: 'text-pink-300' },
+    { bg: 'bg-teal-900/60', text: 'text-teal-300' },
+    { bg: 'bg-orange-900/60', text: 'text-orange-300' },
+    { bg: 'bg-cyan-900/60', text: 'text-cyan-300' },
+  ]
+  return palette[Math.abs(hash) % palette.length]
 }
 
 export function PessoaModal({ pessoa, onClose, onCreated }: Props) {
@@ -34,6 +50,9 @@ export function PessoaModal({ pessoa, onClose, onCreated }: Props) {
   const [grauInfluencia, setGrauInfluencia]     = useState<GrauInfluencia | ''>(p?.grauInfluencia ?? '')
   const [email, setEmail]                       = useState(p?.email ?? '')
   const [instagram, setInstagram]               = useState(p?.instagram ?? '')
+  const [linkedin, setLinkedin]                 = useState(p?.linkedin ?? '')
+  const [etiquetas, setEtiquetas]               = useState<string[]>(p?.etiquetas ?? [])
+  const [etiquetaInput, setEtiquetaInput]       = useState('')
   const [cpf, setCpf]                           = useState(p?.cpf ?? '')
   const [dataNascimento, setDataNascimento]     = useState(p?.dataNascimento ?? '')
   const [sexo, setSexo]                         = useState<Sexo | ''>(p?.sexo ?? '')
@@ -51,6 +70,26 @@ export function PessoaModal({ pessoa, onClose, onCreated }: Props) {
     )
   }
 
+  const addEtiqueta = (valor: string) => {
+    const tag = valor.trim().replace(/,$/, '').trim()
+    if (tag && !etiquetas.includes(tag)) {
+      setEtiquetas((prev) => [...prev, tag])
+    }
+    setEtiquetaInput('')
+  }
+
+  const handleEtiquetaKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault()
+      addEtiqueta(etiquetaInput)
+    }
+    if (e.key === 'Backspace' && !etiquetaInput && etiquetas.length > 0) {
+      setEtiquetas((prev) => prev.slice(0, -1))
+    }
+  }
+
+  const removeEtiqueta = (tag: string) => setEtiquetas((prev) => prev.filter((t) => t !== tag))
+
   const handleSave = async () => {
     if (!nome.trim()) return
     setSaving(true)
@@ -64,6 +103,8 @@ export function PessoaModal({ pessoa, onClose, onCreated }: Props) {
       grauInfluencia: (grauInfluencia as GrauInfluencia) || undefined,
       email: email || undefined,
       instagram: instagram || undefined,
+      linkedin: linkedin || undefined,
+      etiquetas,
       cpf: cpf || undefined,
       dataNascimento: dataNascimento || undefined,
       sexo: (sexo as Sexo) || undefined,
@@ -166,6 +207,35 @@ export function PessoaModal({ pessoa, onClose, onCreated }: Props) {
           </Field>
         </div>
 
+        {/* Etiquetas */}
+        <Field label="Etiquetas">
+          <div className="input flex flex-wrap gap-1.5 min-h-[38px] py-1.5 cursor-text"
+            onClick={(e) => (e.currentTarget.querySelector('input') as HTMLInputElement)?.focus()}
+          >
+            {etiquetas.map((tag) => {
+              const c = tagColor(tag)
+              return (
+                <span key={tag} className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${c.bg} ${c.text}`}>
+                  {tag}
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); removeEtiqueta(tag) }}
+                    className="hover:opacity-70 leading-none"
+                  >×</button>
+                </span>
+              )
+            })}
+            <input
+              className="bg-transparent outline-none text-xs text-white min-w-[120px] flex-1"
+              placeholder={etiquetas.length === 0 ? 'Adicionar etiqueta (Enter ou vírgula)' : ''}
+              value={etiquetaInput}
+              onChange={(e) => setEtiquetaInput(e.target.value)}
+              onKeyDown={handleEtiquetaKeyDown}
+              onBlur={() => etiquetaInput.trim() && addEtiqueta(etiquetaInput)}
+            />
+          </div>
+        </Field>
+
         <Section label="Contato" />
         <div className="grid grid-cols-2 gap-3">
           <Field label="Telefone / WhatsApp">
@@ -175,9 +245,14 @@ export function PessoaModal({ pessoa, onClose, onCreated }: Props) {
             <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@exemplo.com" />
           </Field>
         </div>
-        <Field label="Instagram">
-          <input className="input" value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="@usuario" />
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Instagram">
+            <input className="input" value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="@usuario" />
+          </Field>
+          <Field label="LinkedIn">
+            <input className="input" value={linkedin} onChange={(e) => setLinkedin(e.target.value)} placeholder="linkedin.com/in/usuario" />
+          </Field>
+        </div>
 
         <Section label="Pessoal" />
         <div className="grid grid-cols-3 gap-3">

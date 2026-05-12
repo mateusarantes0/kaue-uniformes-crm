@@ -1,14 +1,21 @@
 import { DragDropContext, DropResult } from '@hello-pangea/dnd'
+import toast from 'react-hot-toast'
 import { useOrcamentoStore } from '../store/useOrcamentoStore'
+import { useEmpresaStore } from '../store/useEmpresaStore'
 import { useFiltrosStore } from '../store/useFiltrosStore'
 import { COLUNAS, Coluna } from '../types'
+import { validarMudancaColuna } from '../lib/validacoesEtapa'
 import { Column } from './Column'
 
 export function Board() {
-  const orcamentos    = useOrcamentoStore((s) => s.orcamentosFiltradosComBusca)
-  const moveOrcamento = useOrcamentoStore((s) => s.moveOrcamento)
-  const marcarComoGanha = useOrcamentoStore((s) => s.marcarComoGanha)
+  const orcamentos      = useOrcamentoStore((s) => s.orcamentosFiltradosComBusca)
+  const allOrcamentos   = useOrcamentoStore((s) => s.orcamentos)
+  const moveOrcamento   = useOrcamentoStore((s) => s.moveOrcamento)
   const setPendingMove  = useOrcamentoStore((s) => s.setPendingMove)
+  const setModalEditar  = useOrcamentoStore((s) => s.setModalEditar)
+  const setValidationErrors = useOrcamentoStore((s) => s.setValidationErrors)
+
+  const empresas = useEmpresaStore((s) => s.empresas)
 
   const busca   = useFiltrosStore((s) => s.busca)
   const update  = useFiltrosStore((s) => s.update)
@@ -20,13 +27,30 @@ export function Board() {
     if (destination.droppableId === source.droppableId) return
 
     const destColuna = destination.droppableId as Coluna
+    const orc = allOrcamentos.find((o) => o.id === draggableId)
+    if (!orc) return
+
+    // Validate for non-modal destinations
+    const modalDestinos: Coluna[] = ['objecao', 'perdido', 'lixo', 'vendido', 'sucesso']
+    if (!modalDestinos.includes(destColuna)) {
+      const empresa = orc.empresaId ? empresas.find((e) => e.id === orc.empresaId) : undefined
+      const { ok, erros } = validarMudancaColuna(orc, destColuna, empresa)
+      if (!ok) {
+        toast.error(erros[0])
+        setModalEditar(orc)
+        setValidationErrors(erros)
+        return
+      }
+    }
 
     if (destColuna === 'objecao') {
       setPendingMove({ orcamentoId: draggableId, colunaDestino: 'objecao', motivo: 'objecao' })
     } else if (destColuna === 'perdido') {
       setPendingMove({ orcamentoId: draggableId, colunaDestino: 'perdido', motivo: 'perdido' })
-    } else if (destColuna === 'vendido') {
-      marcarComoGanha(draggableId)
+    } else if (destColuna === 'lixo') {
+      setPendingMove({ orcamentoId: draggableId, colunaDestino: 'lixo', motivo: 'lixo' })
+    } else if (destColuna === 'vendido' || destColuna === 'sucesso') {
+      setPendingMove({ orcamentoId: draggableId, colunaDestino: destColuna, motivo: 'ganho' })
     } else {
       moveOrcamento(draggableId, destColuna)
     }

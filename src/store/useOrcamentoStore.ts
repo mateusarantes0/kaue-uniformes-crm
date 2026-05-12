@@ -1,10 +1,16 @@
 import { create } from 'zustand'
 import toast from 'react-hot-toast'
-import { Orcamento, Coluna, TipoObjecao, COLUNA_LABELS, ItemAcao, HistoricoItem } from '../types'
+import { Orcamento, Coluna, TipoObjecao, Campanha, COLUNA_LABELS, PROBABILIDADE_POR_COLUNA, ItemAcao, HistoricoItem } from '../types'
 import { nowISO } from '../utils'
 import { useAuthStore } from './useAuthStore'
 import { useFiltrosStore } from './useFiltrosStore'
 import { supabase } from '../lib/supabase'
+
+// Lazy store references — populated after all modules load to avoid circular init issues
+let _pessoas: () => { id: string; etiquetas: string[] }[] = () => []
+let _empresas: () => { id: string; tipoCliente?: string; grupoEstrategico?: string; segmento?: string }[] = () => []
+export function _registerPessoaRef(fn: typeof _pessoas) { _pessoas = fn }
+export function _registerEmpresaRef(fn: typeof _empresas) { _empresas = fn }
 
 // --------------- helpers ---------------
 
@@ -32,6 +38,13 @@ function rowToOrcamento(row: Record<string, unknown>): Orcamento {
     tipoObjecao: row.tipo_objecao as TipoObjecao | undefined,
     observacaoObjecao: row.observacao_objecao as string | undefined,
     cenarioAtual: row.cenario_atual as string | undefined,
+    produto: row.produto as string | undefined,
+    quantidade: row.quantidade as number | undefined,
+    dataEntregaDesejada: row.data_entrega_desejada as string | undefined,
+    condicaoPagamento: row.condicao_pagamento as string | undefined,
+    justificativaQuantidadeMinima: row.justificativa_quantidade_minima as string | undefined,
+    motivoDescarte: row.motivo_descarte as string | undefined,
+    probabilidadeEditadaManualmente: (row.probabilidade_editada_manualmente as boolean) ?? false,
     itensAcao: (row.itens_acao as ItemAcao[]) ?? [],
     historico: (row.historico as HistoricoItem[]) ?? [],
     ownerId: row.owner_id as string,
@@ -65,6 +78,13 @@ function orcamentoToUpdateRow(orc: Orcamento, userId: string): Record<string, un
     tipo_objecao: orc.tipoObjecao ?? null,
     observacao_objecao: orc.observacaoObjecao ?? null,
     cenario_atual: orc.cenarioAtual ?? null,
+    produto: orc.produto ?? null,
+    quantidade: orc.quantidade ?? null,
+    data_entrega_desejada: orc.dataEntregaDesejada ?? null,
+    condicao_pagamento: orc.condicaoPagamento ?? null,
+    justificativa_quantidade_minima: orc.justificativaQuantidadeMinima ?? null,
+    motivo_descarte: orc.motivoDescarte ?? null,
+    probabilidade_editada_manualmente: orc.probabilidadeEditadaManualmente ?? false,
     itens_acao: orc.itensAcao ?? [],
     historico: orc.historico ?? [],
     atualizado_por: userId,
@@ -78,43 +98,67 @@ function computeFiltered(orcamentos: Orcamento[]): Orcamento[] {
   return orcamentos.filter((o) => (o.ownerId ?? '') === user.id)
 }
 
+function evaluateCondicao(orc: Orcamento, campo: string, valor: string): boolean {
+  if (!valor) return true
+  switch (campo) {
+    case 'responsavel': return orc.responsavelId === valor
+    case 'coluna': return orc.coluna === valor
+    case 'origem': return orc.origem === valor
+    case 'campanhaOfertada': return orc.campanhaOfertada === valor
+    case 'fechouPela': return orc.fechouPela === valor
+    case 'etiquetaPessoa': {
+      const contatos = _pessoas().filter((p) => orc.contatosIds.includes(p.id))
+      return contatos.some((p) => (p.etiquetas ?? []).includes(valor))
+    }
+    case 'tipoCliente': {
+      const emp = _empresas().find((e) => e.id === orc.empresaId)
+      return emp?.tipoCliente === valor
+    }
+    case 'grupoEstrategico': {
+      const emp = _empresas().find((e) => e.id === orc.empresaId)
+      return emp?.grupoEstrategico === valor
+    }
+    case 'segmento': {
+      const emp = _empresas().find((e) => e.id === orc.empresaId)
+      return emp?.segmento === valor
+    }
+    default: return true
+  }
+}
+
 function computeFiltradosComBusca(orcamentos: Orcamento[]): Orcamento[] {
   let result = computeFiltered(orcamentos)
-  const { busca, responsaveisIds, colunas, origem, campanhaOfertada, dataInicio, dataFim } =
-    useFiltrosStore.getState()
+  const { busca, grupos, operadorRaiz, dataInicio, dataFim } = useFiltrosStore.getState()
 
   if (busca) {
     const q = busca.toLowerCase()
     result = result.filter((o) => o.nome.toLowerCase().includes(q))
   }
-  if (responsaveisIds.length > 0) {
-    result = result.filter((o) => responsaveisIds.includes(o.responsavelId))
+
+  const gruposAtivos = grupos.filter((g) => g.condicoes.some((c) => c.valor))
+  if (gruposAtivos.length > 0) {
+    result = result.filter((orc) => {
+      const grupoResults = gruposAtivos.map((g) => {
+        if (g.operador === 'AND') {
+          return g.condicoes.every((c) => !c.valor || evaluateCondicao(orc, c.campo, c.valor))
+        } else {
+          return g.condicoes.some((c) => c.valor && evaluateCondicao(orc, c.campo, c.valor))
+        }
+      })
+      return operadorRaiz === 'AND'
+        ? grupoResults.every(Boolean)
+        : grupoResults.some(Boolean)
+    })
   }
-  if (colunas.length > 0) {
-    result = result.filter((o) => colunas.includes(o.coluna))
-  }
-  if (origem) {
-    result = result.filter((o) => o.origem === origem)
-  }
-  if (campanhaOfertada) {
-    result = result.filter((o) => o.campanhaOfertada === campanhaOfertada)
-  }
-  if (dataInicio) {
-    result = result.filter((o) => o.criadoEm >= dataInicio)
-  }
-  if (dataFim) {
-    result = result.filter((o) => o.criadoEm <= dataFim + 'T23:59:59')
-  }
+
+  if (dataInicio) result = result.filter((o) => o.criadoEm >= dataInicio)
+  if (dataFim) result = result.filter((o) => o.criadoEm <= dataFim + 'T23:59:59')
 
   return result
 }
 
-function nextId(orcamentos: Orcamento[]): string {
-  const nums = orcamentos
-    .map((o) => parseInt(o.id.replace('ORC-', ''), 10))
-    .filter((n) => !isNaN(n))
-  const max = nums.length > 0 ? Math.max(...nums) : 0
-  return `ORC-${String(max + 1).padStart(4, '0')}`
+function nextId(): string {
+  return `ORC-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
 }
 
 // --------------- store ---------------
@@ -122,7 +166,7 @@ function nextId(orcamentos: Orcamento[]): string {
 export interface PendingMove {
   orcamentoId: string
   colunaDestino: Coluna
-  motivo: 'objecao' | 'perdido'
+  motivo: 'objecao' | 'perdido' | 'lixo' | 'ganho'
 }
 
 type AddData = Omit<Orcamento, 'id' | 'criadoEm' | 'atualizadoEm' | 'historico' | 'itensAcao' | 'ownerId' | 'criadoPor' | 'atualizadoPor'>
@@ -141,8 +185,10 @@ interface OrcamentoStore {
   updateOrcamento: (id: string, data: Partial<Orcamento>) => Promise<void>
   moveOrcamento: (id: string, coluna: Coluna, tipoObjecao?: TipoObjecao, observacaoObjecao?: string) => Promise<void>
   deleteOrcamento: (id: string) => Promise<void>
-  marcarComoGanha: (id: string) => Promise<void>
+  marcarComoGanha: (id: string, fechouPela?: Campanha) => Promise<void>
   marcarComoPerdida: (id: string, tipoObjecao: TipoObjecao, observacao?: string) => Promise<void>
+  validationErrors: string[] | null
+  setValidationErrors: (errs: string[] | null) => void
   addItemAcao: (orcamentoId: string, texto: string) => Promise<void>
   toggleItemAcao: (orcamentoId: string, itemId: string) => Promise<void>
   deleteItemAcao: (orcamentoId: string, itemId: string) => Promise<void>
@@ -165,6 +211,7 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
   modalEditar: null,
   modalDetalheId: null,
   pendingMove: null,
+  validationErrors: null,
 
   loadAll: async () => {
     const { data, error } = await supabase
@@ -178,13 +225,6 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
       orcamentosFiltrados: computeFiltered(orcamentos),
       orcamentosFiltradosComBusca: computeFiltradosComBusca(orcamentos),
     })
-
-    supabase
-      .channel('orcamentos-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orcamentos' }, () => {
-        get().loadAll()
-      })
-      .subscribe()
   },
 
   addOrcamento: async (data) => {
@@ -192,7 +232,7 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
     const userId = useAuthStore.getState().user?.id ?? ''
     const orcamento: Orcamento = {
       ...data,
-      id: nextId(get().orcamentos),
+      id: nextId(),
       criadoEm: now,
       atualizadoEm: now,
       criadoPor: userId,
@@ -222,6 +262,13 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
       campanha_ofertada: orcamento.campanhaOfertada ?? null,
       fechou_pela: orcamento.fechouPela ?? null,
       cenario_atual: orcamento.cenarioAtual ?? null,
+      produto: orcamento.produto ?? null,
+      quantidade: orcamento.quantidade ?? null,
+      data_entrega_desejada: orcamento.dataEntregaDesejada ?? null,
+      condicao_pagamento: orcamento.condicaoPagamento ?? null,
+      justificativa_quantidade_minima: orcamento.justificativaQuantidadeMinima ?? null,
+      motivo_descarte: orcamento.motivoDescarte ?? null,
+      probabilidade_editada_manualmente: orcamento.probabilidadeEditadaManualmente ?? false,
       itens_acao: [],
       historico: orcamento.historico,
       owner_id: userId,
@@ -283,9 +330,14 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
     const existing = get().orcamentos.find((o) => o.id === id)
     if (!existing) return
 
+    const novaProbabilidade = existing.probabilidadeEditadaManualmente
+      ? existing.probabilidade
+      : PROBABILIDADE_POR_COLUNA[coluna]
+
     const updated: Orcamento = {
       ...existing,
       coluna,
+      probabilidade: novaProbabilidade,
       ultimoContatoEm: now,
       atualizadoEm: now,
       atualizadoPor: userId,
@@ -296,12 +348,13 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
       ],
     }
 
-    const { error } = await supabase
+    const { data: rows, error } = await supabase
       .from('orcamentos')
       .update(orcamentoToUpdateRow(updated, userId))
       .eq('id', id)
+      .select('id')
 
-    if (error) { toast.error('Erro ao mover orçamento'); return }
+    if (error || !rows?.length) { toast.error('Erro ao mover orçamento'); return }
 
     set((s) => {
       const orcamentos = s.orcamentos.map((o) => o.id === id ? updated : o)
@@ -327,7 +380,7 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
     })
   },
 
-  marcarComoGanha: async (id) => {
+  marcarComoGanha: async (id, fechouPela) => {
     const now = nowISO()
     const userId = useAuthStore.getState().user?.id ?? ''
     const existing = get().orcamentos.find((o) => o.id === id)
@@ -338,17 +391,20 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
       coluna: 'vendido',
       vendidoEm: now,
       ultimoContatoEm: now,
+      probabilidade: PROBABILIDADE_POR_COLUNA['vendido'],
+      ...(fechouPela ? { fechouPela } : {}),
       atualizadoEm: now,
       atualizadoPor: userId,
       historico: [...existing.historico, { data: now, texto: '🏆 Marcado como Ganho', usuarioId: userId }],
     }
 
-    const { error } = await supabase
+    const { data: rows, error } = await supabase
       .from('orcamentos')
       .update(orcamentoToUpdateRow(updated, userId))
       .eq('id', id)
+      .select('id')
 
-    if (error) { toast.error('Erro ao atualizar orçamento'); return }
+    if (error || !rows?.length) { toast.error('Erro ao atualizar orçamento'); return }
 
     set((s) => {
       const orcamentos = s.orcamentos.map((o) => o.id === id ? updated : o)
@@ -381,12 +437,13 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
       ],
     }
 
-    const { error } = await supabase
+    const { data: rows, error } = await supabase
       .from('orcamentos')
       .update(orcamentoToUpdateRow(updated, userId))
       .eq('id', id)
+      .select('id')
 
-    if (error) { toast.error('Erro ao atualizar orçamento'); return }
+    if (error || !rows?.length) { toast.error('Erro ao atualizar orçamento'); return }
 
     set((s) => {
       const orcamentos = s.orcamentos.map((o) => o.id === id ? updated : o)
@@ -521,6 +578,7 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
   setModalEditar: (o) => set({ modalEditar: o }),
   setModalDetalheId: (id) => set({ modalDetalheId: id }),
   setPendingMove: (move) => set({ pendingMove: move }),
+  setValidationErrors: (errs) => set({ validationErrors: errs }),
 }))
 
 useAuthStore.subscribe(() => {
@@ -530,3 +588,11 @@ useAuthStore.subscribe(() => {
 useFiltrosStore.subscribe(() => {
   useOrcamentoStore.getState().refreshFiltradosComBusca()
 })
+
+// Realtime subscription set up once — NOT inside loadAll() to prevent duplication
+supabase
+  .channel('orcamentos-rt')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'orcamentos' }, () => {
+    useOrcamentoStore.getState().loadAll()
+  })
+  .subscribe()
