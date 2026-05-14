@@ -33,17 +33,21 @@ async function fetchAllProfiles(): Promise<User[]> {
   return (data ?? []) as User[]
 }
 
-async function loadAllStores() {
+async function loadStoresParallel() {
   const [{ useEmpresaStore }, { usePessoaStore }, { useOrcamentoStore }] = await Promise.all([
     import('./useEmpresaStore'),
     import('./usePessoaStore'),
     import('./useOrcamentoStore'),
   ])
-  await Promise.all([
+  Promise.allSettled([
     useEmpresaStore.getState().loadAll(),
     usePessoaStore.getState().loadAll(),
     useOrcamentoStore.getState().loadAll(),
-  ])
+  ]).then((results) => {
+    results.forEach((r, i) => {
+      if (r.status === 'rejected') console.error(`Store ${i} falhou ao carregar:`, r.reason)
+    })
+  })
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
@@ -52,37 +56,72 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   loading: true,
 
   initialize: async () => {
-    // Rely entirely on onAuthStateChange. INITIAL_SESSION fires immediately on registration
-    // with the real, server-refreshed session — more reliable than getSession() cache.
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
+
+    try {
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(
+          () => reject(new Error('Timeout ao inicializar sessão')),
+          10000,
+        )
+      })
+
+      const initPromise = (async () => {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        if (sessionError) throw sessionError
+
         if (!session?.user) {
-          // No session (cold start or already signed out)
           set({ user: null, users: [], loading: false })
           return
         }
-        // For SIGNED_IN: skip if it's the same user re-authenticating (token refresh,
-        // changePassword re-auth). INITIAL_SESSION always runs so the profile is correct.
-        if (event === 'SIGNED_IN' && get().user?.id === session.user.id) return
 
+        const [profile, allProfiles] = await Promise.all([
+          fetchProfile(session.user.id),
+          fetchAllProfiles(),
+        ])
+
+        if (!profile) {
+          await supabase.auth.signOut()
+          set({ user: null, users: [], loading: false })
+          return
+        }
+
+        set({ user: profile, users: allProfiles, loading: false })
+
+        // Carrega stores em paralelo sem bloquear o loading da auth
+        loadStoresParallel()
+      })()
+
+      await Promise.race([initPromise, timeoutPromise])
+    } catch (err) {
+      console.error('Erro ao inicializar:', err)
+      try { await supabase.auth.signOut() } catch { /* ignorar */ }
+      set({ user: null, users: [], loading: false })
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId)
+    }
+
+    // Listener para mudanças de auth após o carregamento inicial
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN') {
+        // Ignorar re-autenticação do mesmo usuário (changePassword, token refresh)
+        if (get().user?.id === session?.user?.id) return
         try {
           const [profile, allProfiles] = await Promise.all([
-            fetchProfile(session.user.id),
+            fetchProfile(session!.user.id),
             fetchAllProfiles(),
           ])
           if (profile) {
-            set({ user: profile, users: allProfiles, loading: false })
-            await loadAllStores()
-          } else {
-            set({ user: null, loading: false })
+            set({ user: profile, users: allProfiles })
+            loadStoresParallel()
           }
-        } catch {
-          set({ user: null, loading: false })
+        } catch (e) {
+          console.error('Erro ao atualizar profile no listener:', e)
         }
       } else if (event === 'SIGNED_OUT') {
         set({ user: null, users: [], loading: false })
       }
-      // TOKEN_REFRESHED, USER_UPDATED, etc. are intentionally ignored.
+      // TOKEN_REFRESHED, USER_UPDATED, INITIAL_SESSION: ignorados intencionalmente
     })
   },
 
