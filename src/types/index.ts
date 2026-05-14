@@ -21,7 +21,22 @@ export const UFS: UF[] = [
 // ============================================================
 export type Coluna =
   | 'lead' | 'qualificacao' | 'orcamento_enviado' | 'negociacao'
-  | 'objecao' | 'aguardando' | 'vendido' | 'sucesso' | 'perdido' | 'lixo'
+  | 'objecao' | 'aguardando' | 'vendido' | 'despacho' | 'sucesso' | 'perdido' | 'lixo'
+
+export type CondicaoPagamento = 'pix_avista' | 'boleto_avista' | 'pix_parcelado' | 'boleto_parcelado' | 'cartao_credito'
+export const CONDICAO_PAGAMENTO_LABELS: Record<CondicaoPagamento, string> = {
+  pix_avista: 'Pix à vista',
+  boleto_avista: 'Boleto à vista',
+  pix_parcelado: 'Pix parcelado',
+  boleto_parcelado: 'Boleto parcelado',
+  cartao_credito: 'Cartão de crédito',
+}
+
+export type CondicaoParcelamento = 'entrada_despacho' | 'parcelado'
+export const CONDICAO_PARCELAMENTO_LABELS: Record<CondicaoParcelamento, string> = {
+  entrada_despacho: 'Entrada e despacho',
+  parcelado: 'Parcelado em X vezes',
+}
 
 export type Origem =
   | 'base_clientes' | 'blog' | 'chat_site' | 'email_mkt' | 'evento'
@@ -80,7 +95,12 @@ export interface Orcamento {
   produto?: string
   quantidade?: number
   dataEntregaDesejada?: string
-  condicaoPagamento?: string
+  dataSaida?: string
+  condicaoPagamento?: CondicaoPagamento
+  condicaoParcelamento?: CondicaoParcelamento
+  detalheParcelamento?: string
+  valorSinal?: number
+  despachadoEm?: string
   justificativaQuantidadeMinima?: string
   motivoDescarte?: string
   itensAcao: ItemAcao[]
@@ -188,18 +208,19 @@ export interface Empresa {
 // ============================================================
 export const PROBABILIDADE_POR_COLUNA: Record<Coluna, number> = {
   lead: 5, qualificacao: 15, orcamento_enviado: 35, negociacao: 55,
-  objecao: 40, aguardando: 80, vendido: 100, sucesso: 100,
+  objecao: 40, aguardando: 80, vendido: 100, despacho: 100, sucesso: 100,
   perdido: 0, lixo: 0,
 }
 
 export const COLUNA_LABELS: Record<Coluna, string> = {
-  lead: 'Chamada Lead',
+  lead: 'Chegada Lead',
   qualificacao: 'Qualificação',
   orcamento_enviado: 'Orçamento Enviado',
   negociacao: 'Negociação',
   objecao: 'Objeção',
   aguardando: 'Aguardando',
   vendido: 'Vendido',
+  despacho: 'Despacho',
   sucesso: 'Sucesso',
   perdido: 'Perdido',
   lixo: 'Lixo',
@@ -380,13 +401,14 @@ export interface ColunaConfig {
 }
 
 export const COLUNAS: ColunaConfig[] = [
-  { id: 'lead',              label: 'Chamada Lead',      emoji: '📋', showTotal: false, borderColor: 'border-slate-400'  },
+  { id: 'lead',              label: 'Chegada Lead',      emoji: '📋', showTotal: false, borderColor: 'border-slate-400'  },
   { id: 'qualificacao',      label: 'Qualificação',      emoji: '🎯', showTotal: false, borderColor: 'border-slate-300'  },
   { id: 'orcamento_enviado', label: 'Orçamento Enviado', emoji: '💼', showTotal: true,  borderColor: 'border-amber-400'  },
   { id: 'negociacao',        label: 'Negociação',        emoji: '🤝', showTotal: true,  borderColor: 'border-purple-400' },
   { id: 'objecao',           label: 'Objeção',           emoji: '⚠️', showTotal: true,  borderColor: 'border-orange-400' },
   { id: 'aguardando',        label: 'Aguardando',        emoji: '⏳', showTotal: false, borderColor: 'border-yellow-400' },
   { id: 'vendido',           label: 'Vendido',           emoji: '✅', showTotal: true,  borderColor: 'border-green-600'  },
+  { id: 'despacho',          label: 'Despacho',          emoji: '📦', showTotal: true,  borderColor: 'border-blue-400'   },
   { id: 'sucesso',           label: 'Sucesso',           emoji: '🌟', showTotal: true,  borderColor: 'border-green-400'  },
   { id: 'perdido',           label: 'Perdido',           emoji: '❌', showTotal: false, borderColor: 'border-red-500'    },
   { id: 'lixo',              label: 'Lixo',              emoji: '🗑️', showTotal: false, borderColor: 'border-slate-500'  },
@@ -400,6 +422,7 @@ export const COLUNA_BADGE_COLORS: Record<Coluna, { fg: string; bg: string }> = {
   objecao:           { fg: 'text-orange-300',  bg: 'bg-orange-500/15' },
   aguardando:        { fg: 'text-yellow-300',  bg: 'bg-yellow-500/15' },
   vendido:           { fg: 'text-green-400',   bg: 'bg-green-500/20' },
+  despacho:          { fg: 'text-blue-300',    bg: 'bg-blue-500/20' },
   sucesso:           { fg: 'text-emerald-300', bg: 'bg-emerald-500/20' },
   perdido:           { fg: 'text-red-300',     bg: 'bg-red-500/20' },
   lixo:              { fg: 'text-slate-500',   bg: 'bg-slate-700/30' },
@@ -413,6 +436,7 @@ export const COLUNA_BADGE: Record<Coluna, string> = {
   objecao:           'bg-orange-900/40 text-orange-400',
   aguardando:        'bg-yellow-900/40 text-yellow-400',
   vendido:           'bg-green-900/40 text-green-400',
+  despacho:          'bg-blue-900/40 text-blue-400',
   sucesso:           'bg-green-800/40 text-green-300',
   perdido:           'bg-red-900/40 text-red-400',
   lixo:              'bg-slate-800 text-slate-500',

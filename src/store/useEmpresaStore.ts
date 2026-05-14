@@ -37,9 +37,7 @@ function rowToEmpresa(row: Record<string, unknown>): Empresa {
 }
 
 function computeFiltered(empresas: Empresa[]): Empresa[] {
-  const { user } = useAuthStore.getState()
-  if (!user || user.role === 'admin') return empresas
-  return empresas.filter((e) => e.ownerId === user.id)
+  return empresas
 }
 
 function nextId(): string {

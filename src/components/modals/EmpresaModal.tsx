@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import toast from 'react-hot-toast'
 import { useEmpresaStore } from '../../store/useEmpresaStore'
+import { useOrcamentoStore } from '../../store/useOrcamentoStore'
 import { useAuthStore } from '../../store/useAuthStore'
 import {
   Empresa, Segmento, TipoCliente, GrupoEstrategico, Frequencia, StatusCliente, PorteEmpresa, UF, UFS,
@@ -9,7 +10,7 @@ import {
 } from '../../types'
 import { ModalShell, Field, Section } from './CreateModal'
 import { VinculosSection } from '../empresa/VinculosSection'
-import { formatDateTime } from '../../utils'
+import { formatDateTime, formatCurrency } from '../../utils'
 
 interface Props {
   empresa?: Empresa
@@ -21,8 +22,19 @@ export function EmpresaModal({ empresa, onClose, onCreated }: Props) {
   const addEmpresa    = useEmpresaStore((s) => s.addEmpresa)
   const updateEmpresa = useEmpresaStore((s) => s.updateEmpresa)
   const users         = useAuthStore((s) => s.users)
+  const orcamentos    = useOrcamentoStore((s) => s.orcamentos)
   const isEdit = !!empresa
   const e = empresa
+
+  const ultimaCompra = useMemo(() => {
+    if (!e) return null
+    const compras = orcamentos.filter(
+      (o) => o.empresaId === e.id && ['vendido', 'despacho', 'sucesso'].includes(o.coluna) && o.vendidoEm
+    )
+    if (compras.length === 0) return null
+    compras.sort((a, b) => (b.vendidoEm ?? '').localeCompare(a.vendidoEm ?? ''))
+    return compras[0]
+  }, [e, orcamentos])
 
   const [nome, setNome]                         = useState(e?.nome ?? '')
   const [razaoSocial, setRazaoSocial]           = useState(e?.razaoSocial ?? '')
@@ -128,6 +140,17 @@ export function EmpresaModal({ empresa, onClose, onCreated }: Props) {
           <>
             <Section label="Vínculos" />
             <VinculosSection empresa={e} onClose={onClose} />
+            <div className="flex items-center gap-2 py-2 border-t border-slate-700/50 mt-1">
+              <span className="text-[12px] text-slate-400 flex-shrink-0">Última compra:</span>
+              {ultimaCompra ? (
+                <span className="text-[12px] text-white">
+                  {ultimaCompra.vendidoEm ? new Date(ultimaCompra.vendidoEm).toLocaleDateString('pt-BR') : '—'}
+                  {ultimaCompra.valor ? ` — ${formatCurrency(ultimaCompra.valor)}` : ''}
+                </span>
+              ) : (
+                <span className="text-[12px] text-slate-500 italic">Sem compras registradas</span>
+              )}
+            </div>
           </>
         )}
 

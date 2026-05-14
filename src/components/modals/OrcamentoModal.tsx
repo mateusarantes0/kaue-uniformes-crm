@@ -6,7 +6,8 @@ import { usePessoaStore } from '../../store/usePessoaStore'
 import { useAuthStore } from '../../store/useAuthStore'
 import {
   Orcamento, Coluna, Origem, Campanha, COLUNAS, ORIGEM_LABELS, CAMPANHA_LABELS, CARGO_LABELS,
-  PROBABILIDADE_POR_COLUNA,
+  PROBABILIDADE_POR_COLUNA, CondicaoPagamento, CondicaoParcelamento,
+  CONDICAO_PAGAMENTO_LABELS, CONDICAO_PARCELAMENTO_LABELS,
 } from '../../types'
 import { ModalShell, Field } from './CreateModal'
 import { SearchableSelect, SearchableItem } from '../ui/SearchableSelect'
@@ -55,7 +56,9 @@ export function OrcamentoModal() {
   const [produto, setProduto]         = useState(o?.produto ?? '')
   const [quantidade, setQuantidade]   = useState(o?.quantidade?.toString() ?? '')
   const [dataEntregaDesejada, setDataEntregaDesejada] = useState(o?.dataEntregaDesejada ?? '')
-  const [condicaoPagamento, setCondicaoPagamento] = useState(o?.condicaoPagamento ?? '')
+  const [condicaoPagamento, setCondicaoPagamento] = useState<CondicaoPagamento | ''>(o?.condicaoPagamento ?? '')
+  const [condicaoParcelamento, setCondicaoParcelamento] = useState<CondicaoParcelamento | ''>(o?.condicaoParcelamento ?? '')
+  const [detalheParcelamento, setDetalheParcelamento] = useState(o?.detalheParcelamento ?? '')
   const [justificativaQuantidadeMinima, setJustificativaQuantidadeMinima] = useState(o?.justificativaQuantidadeMinima ?? '')
   const [motivoDescarte, setMotivoDescarte] = useState(o?.motivoDescarte ?? MOTIVOS_DESCARTE[0])
   const [valor, setValor]             = useState<number | undefined>(o?.valor)
@@ -75,6 +78,8 @@ export function OrcamentoModal() {
     o?.proximaAtividadeData ?? (isEdit ? '' : todayISO())
   )
   const [dataEntrega, setDataEntrega] = useState(o?.dataEntrega ?? '')
+  const [dataSaida, setDataSaida]     = useState(o?.dataSaida ?? '')
+  const [valorSinal, setValorSinal]   = useState<number | undefined>(o?.valorSinal)
   const [campanhaOfertada, setCampanhaOfertada] = useState<Campanha | ''>(o?.campanhaOfertada ?? '')
   const [fechouPela, setFechouPela]   = useState<Campanha | ''>(o?.fechouPela ?? '')
 
@@ -122,10 +127,13 @@ export function OrcamentoModal() {
       produto: produto || undefined,
       quantidade: qtd,
       dataEntregaDesejada: dataEntregaDesejada || undefined,
-      condicaoPagamento: condicaoPagamento || undefined,
+      condicaoPagamento: (condicaoPagamento as CondicaoPagamento) || undefined,
+      condicaoParcelamento: (condicaoParcelamento as CondicaoParcelamento) || undefined,
+      detalheParcelamento: detalheParcelamento || undefined,
       justificativaQuantidadeMinima: justificativaQuantidadeMinima || undefined,
       motivoDescarte: coluna === 'lixo' ? motivoDescarte : undefined,
       valor,
+      valorSinal,
       probabilidade: probabilidade ? Number(probabilidade) : undefined,
       probabilidadeEditadaManualmente,
       ultimoContatoEm: ultimoContatoEm || undefined,
@@ -134,6 +142,7 @@ export function OrcamentoModal() {
       proximaAtividadeTitulo: proximaAtividadeTitulo || undefined,
       proximaAtividadeData: proximaAtividadeData || undefined,
       dataEntrega: dataEntrega || undefined,
+      dataSaida: dataSaida || undefined,
       campanhaOfertada: (campanhaOfertada as Campanha) || undefined,
       fechouPela: (fechouPela as Campanha) || undefined,
       cenarioAtual: cenarioAtual || undefined,
@@ -313,14 +322,34 @@ export function OrcamentoModal() {
             </Field>
           )}
 
+          <Field label="Data de Entrega Desejada">
+            <input className="input" type="date" value={dataEntregaDesejada} onChange={(e) => setDataEntregaDesejada(e.target.value)} />
+          </Field>
+
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Data de Entrega Desejada">
-              <input className="input" type="date" value={dataEntregaDesejada} onChange={(e) => setDataEntregaDesejada(e.target.value)} />
-            </Field>
             <Field label="Condição de Pagamento">
-              <input className="input" value={condicaoPagamento} onChange={(e) => setCondicaoPagamento(e.target.value)} placeholder="Ex: 30/60/90 dias" />
+              <select className="input" value={condicaoPagamento} onChange={(e) => setCondicaoPagamento(e.target.value as CondicaoPagamento | '')}>
+                <option value="">— Selecionar —</option>
+                {(Object.entries(CONDICAO_PAGAMENTO_LABELS) as [CondicaoPagamento, string][]).map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Parcelamento">
+              <select className="input" value={condicaoParcelamento} onChange={(e) => setCondicaoParcelamento(e.target.value as CondicaoParcelamento | '')}>
+                <option value="">— Selecionar —</option>
+                {(Object.entries(CONDICAO_PARCELAMENTO_LABELS) as [CondicaoParcelamento, string][]).map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
             </Field>
           </div>
+
+          {condicaoParcelamento === 'parcelado' && (
+            <Field label="Detalhe do Parcelamento">
+              <input className="input" value={detalheParcelamento} onChange={(e) => setDetalheParcelamento(e.target.value)} placeholder="Ex: 3x sem juros" />
+            </Field>
+          )}
 
           {coluna === 'lixo' && (
             <Field label="Motivo do Descarte">
@@ -334,16 +363,8 @@ export function OrcamentoModal() {
             <Field label="Valor (R$)">
               <CurrencyInput value={valor} onChange={setValor} />
             </Field>
-            <Field label="Probabilidade (%)">
-              <input
-                className="input"
-                type="number"
-                min="0"
-                max="100"
-                value={probabilidade}
-                onChange={(e) => { setProbabilidade(e.target.value); setProbabilidadeEditadaManualmente(true) }}
-                placeholder="0–100"
-              />
+            <Field label="Valor do Sinal (R$)">
+              <CurrencyInput value={valorSinal} onChange={setValorSinal} />
             </Field>
           </div>
 
@@ -355,14 +376,22 @@ export function OrcamentoModal() {
               <input className="input" type="date" value={orcamentoEnviadoEm} onChange={(e) => setOrcamentoEnviadoEm(e.target.value)} />
             </Field>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Fechamento Esperado">
-              <input className="input" type="date" value={dataFechamentoEsperada} onChange={(e) => setDataFechamentoEsperada(e.target.value)} />
-            </Field>
-            <Field label="Data de Entrega">
-              <input className="input" type="date" value={dataEntrega} onChange={(e) => setDataEntrega(e.target.value)} />
-            </Field>
-          </div>
+          <Field label="Fechamento Esperado">
+            <input className="input" type="date" value={dataFechamentoEsperada} onChange={(e) => setDataFechamentoEsperada(e.target.value)} />
+          </Field>
+
+          <Field label="Intervalo de Entrega">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] text-slate-500 mb-1">Saída</label>
+                <input className="input" type="date" value={dataSaida} onChange={(e) => setDataSaida(e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-[10px] text-slate-500 mb-1">Previsão</label>
+                <input className="input" type="date" value={dataEntrega} onChange={(e) => setDataEntrega(e.target.value)} />
+              </div>
+            </div>
+          </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Próxima Atividade">
               <input className="input" value={proximaAtividadeTitulo} onChange={(e) => setProximaAtividadeTitulo(e.target.value)} placeholder="Ex: Ligar amanhã" />
@@ -392,7 +421,7 @@ export function OrcamentoModal() {
       {/* Tab 2 — Detalhes */}
       {tab === 2 && (
         <div className="space-y-3">
-          <Field label="Cenário Atual">
+          <Field label="Comentário">
             <textarea
               className="input resize-none"
               rows={5}

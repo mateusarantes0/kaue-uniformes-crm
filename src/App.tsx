@@ -18,6 +18,7 @@ import { OrcamentoDetalhe } from './components/modals/OrcamentoDetalhe'
 import { ObjecaoModal } from './components/modals/LossModal'
 import { GanhoModal } from './components/modals/GanhoModal'
 import { DescarteModal } from './components/modals/DescarteModal'
+import { CamposFaltantesModal } from './components/modals/CamposFaltantesModal'
 import { PessoaModal } from './components/modals/PessoaModal'
 import { EmpresaModal } from './components/modals/EmpresaModal'
 import { FiltrosOrcamentoModal } from './components/modals/FiltrosOrcamentoModal'
@@ -38,6 +39,8 @@ export default function App() {
   const orcModalEditar = useOrcamentoStore((s) => s.modalEditar)
   const orcDetalheId   = useOrcamentoStore((s) => s.modalDetalheId)
   const pendingMove    = useOrcamentoStore((s) => s.pendingMove)
+  const pendingCamposFaltantes = useOrcamentoStore((s) => s.pendingCamposFaltantes)
+  const setPendingCamposFaltantes = useOrcamentoStore((s) => s.setPendingCamposFaltantes)
 
   const pesModalCriar  = usePessoaStore((s) => s.modalCriar)
   const pesModalEditar = usePessoaStore((s) => s.modalEditar)
@@ -104,6 +107,14 @@ export default function App() {
       {pendingMove && (pendingMove.motivo === 'objecao' || pendingMove.motivo === 'perdido') && <ObjecaoModal />}
       {pendingMove && pendingMove.motivo === 'ganho' && <GanhoModal />}
       {pendingMove && pendingMove.motivo === 'lixo' && <DescarteModal />}
+      {pendingCamposFaltantes && (
+        <CamposFaltantesModal
+          orcamentoId={pendingCamposFaltantes.orcamentoId}
+          colunaDestino={pendingCamposFaltantes.colunaDestino}
+          erros={pendingCamposFaltantes.erros}
+          onClose={() => setPendingCamposFaltantes(null)}
+        />
+      )}
 
       {pesModalCriar && (
         <PessoaModal onClose={() => setPesModalCriar(false)} />

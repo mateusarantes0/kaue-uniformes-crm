@@ -6,11 +6,11 @@ export interface ValidacaoResult {
 }
 
 const FORWARD_STAGES: Coluna[] = [
-  'qualificacao', 'orcamento_enviado', 'negociacao', 'objecao', 'aguardando', 'vendido', 'sucesso',
+  'qualificacao', 'orcamento_enviado', 'negociacao', 'objecao', 'aguardando', 'vendido', 'despacho', 'sucesso',
 ]
 
 const POST_ENVIADO_STAGES: Coluna[] = [
-  'orcamento_enviado', 'negociacao', 'objecao', 'aguardando', 'vendido', 'sucesso',
+  'orcamento_enviado', 'negociacao', 'objecao', 'aguardando', 'vendido', 'despacho', 'sucesso',
 ]
 
 export function validarMudancaColuna(
@@ -50,14 +50,14 @@ export function validarMudancaColuna(
     if (!orc.observacaoObjecao?.trim()) erros.push('Observação da objeção é obrigatória')
   }
 
-  // aguardando, vendido, sucesso: empresa.razaoSocial + cnpj
-  if (['aguardando', 'vendido', 'sucesso'].includes(destino)) {
+  // aguardando, vendido, despacho, sucesso: empresa.razaoSocial + cnpj
+  if (['aguardando', 'vendido', 'despacho', 'sucesso'].includes(destino)) {
     if (!empresa?.razaoSocial?.trim()) erros.push('Razão Social da empresa é obrigatória')
     if (!empresa?.cnpj?.trim()) erros.push('CNPJ da empresa é obrigatório')
   }
 
-  // vendido, sucesso: fechouPela
-  if (destino === 'vendido' || destino === 'sucesso') {
+  // vendido, despacho, sucesso: fechouPela
+  if (destino === 'vendido' || destino === 'despacho' || destino === 'sucesso') {
     if (!orc.fechouPela) erros.push('Campanha de fechamento é obrigatória')
   }
 

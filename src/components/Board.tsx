@@ -7,11 +7,13 @@ import { COLUNAS, Coluna } from '../types'
 import { validarMudancaColuna } from '../lib/validacoesEtapa'
 import { Column } from './Column'
 
+
 export function Board() {
   const orcamentos      = useOrcamentoStore((s) => s.orcamentosFiltradosComBusca)
   const allOrcamentos   = useOrcamentoStore((s) => s.orcamentos)
   const moveOrcamento   = useOrcamentoStore((s) => s.moveOrcamento)
   const setPendingMove  = useOrcamentoStore((s) => s.setPendingMove)
+  const setPendingCamposFaltantes = useOrcamentoStore((s) => s.setPendingCamposFaltantes)
   const setModalEditar  = useOrcamentoStore((s) => s.setModalEditar)
   const setValidationErrors = useOrcamentoStore((s) => s.setValidationErrors)
 
@@ -31,13 +33,12 @@ export function Board() {
     if (!orc) return
 
     // Validate for non-modal destinations
-    const modalDestinos: Coluna[] = ['objecao', 'perdido', 'lixo', 'vendido', 'sucesso']
+    const modalDestinos: Coluna[] = ['objecao', 'perdido', 'lixo', 'vendido', 'despacho', 'sucesso']
     if (!modalDestinos.includes(destColuna)) {
       const empresa = orc.empresaId ? empresas.find((e) => e.id === orc.empresaId) : undefined
       const { ok, erros } = validarMudancaColuna(orc, destColuna, empresa)
       if (!ok) {
-        toast.error(erros[0])
-        setModalEditar(orc)
+        setPendingCamposFaltantes({ orcamentoId: draggableId, colunaDestino: destColuna, erros })
         setValidationErrors(erros)
         return
       }
@@ -49,7 +50,7 @@ export function Board() {
       setPendingMove({ orcamentoId: draggableId, colunaDestino: 'perdido', motivo: 'perdido' })
     } else if (destColuna === 'lixo') {
       setPendingMove({ orcamentoId: draggableId, colunaDestino: 'lixo', motivo: 'lixo' })
-    } else if (destColuna === 'vendido' || destColuna === 'sucesso') {
+    } else if (destColuna === 'vendido' || destColuna === 'despacho' || destColuna === 'sucesso') {
       setPendingMove({ orcamentoId: draggableId, colunaDestino: destColuna, motivo: 'ganho' })
     } else {
       moveOrcamento(draggableId, destColuna)

@@ -6,8 +6,10 @@ import { ModalShell } from './CreateModal'
 const MOTIVOS_DESCARTE = [
   { value: 'Engano', label: 'Engano' },
   { value: 'Erro no contato', label: 'Erro no contato' },
+  { value: 'Duplicado', label: 'Duplicado' },
   { value: 'Spam', label: 'Spam' },
   { value: 'Sem interesse', label: 'Sem interesse' },
+  { value: 'Costureira / fornecedor', label: 'Costureira / fornecedor procurando' },
   { value: 'Outros', label: 'Outros' },
 ] as const
 

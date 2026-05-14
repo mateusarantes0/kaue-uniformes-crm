@@ -32,6 +32,11 @@ function rowToOrcamento(row: Record<string, unknown>): Orcamento {
     vendidoEm: row.vendido_em as string | undefined,
     dataPerda: row.data_perda as string | undefined,
     dataEntrega: row.data_entrega as string | undefined,
+    dataSaida: row.data_saida as string | undefined,
+    valorSinal: row.valor_sinal as number | undefined,
+    despachadoEm: row.despachado_em as string | undefined,
+    condicaoParcelamento: row.condicao_parcelamento as Orcamento['condicaoParcelamento'] | undefined,
+    detalheParcelamento: row.detalhe_parcelamento as string | undefined,
     origem: row.origem as Orcamento['origem'],
     campanhaOfertada: row.campanha_ofertada as Orcamento['campanhaOfertada'],
     fechouPela: row.fechou_pela as Orcamento['fechouPela'],
@@ -41,7 +46,7 @@ function rowToOrcamento(row: Record<string, unknown>): Orcamento {
     produto: row.produto as string | undefined,
     quantidade: row.quantidade as number | undefined,
     dataEntregaDesejada: row.data_entrega_desejada as string | undefined,
-    condicaoPagamento: row.condicao_pagamento as string | undefined,
+    condicaoPagamento: row.condicao_pagamento as Orcamento['condicaoPagamento'] | undefined,
     justificativaQuantidadeMinima: row.justificativa_quantidade_minima as string | undefined,
     motivoDescarte: row.motivo_descarte as string | undefined,
     probabilidadeEditadaManualmente: (row.probabilidade_editada_manualmente as boolean) ?? false,
@@ -72,6 +77,11 @@ function orcamentoToUpdateRow(orc: Orcamento, userId: string): Record<string, un
     vendido_em: orc.vendidoEm ?? null,
     data_perda: orc.dataPerda ?? null,
     data_entrega: orc.dataEntrega ?? null,
+    data_saida: orc.dataSaida ?? null,
+    valor_sinal: orc.valorSinal ?? null,
+    despachado_em: orc.despachadoEm ?? null,
+    condicao_parcelamento: orc.condicaoParcelamento ?? null,
+    detalhe_parcelamento: orc.detalheParcelamento ?? null,
     origem: orc.origem ?? null,
     campanha_ofertada: orc.campanhaOfertada ?? null,
     fechou_pela: orc.fechouPela ?? null,
@@ -169,6 +179,12 @@ export interface PendingMove {
   motivo: 'objecao' | 'perdido' | 'lixo' | 'ganho'
 }
 
+export interface PendingCamposFaltantes {
+  orcamentoId: string
+  colunaDestino: Coluna
+  erros: string[]
+}
+
 type AddData = Omit<Orcamento, 'id' | 'criadoEm' | 'atualizadoEm' | 'historico' | 'itensAcao' | 'ownerId' | 'criadoPor' | 'atualizadoPor'>
 
 interface OrcamentoStore {
@@ -179,6 +195,7 @@ interface OrcamentoStore {
   modalEditar: Orcamento | null
   modalDetalheId: string | null
   pendingMove: PendingMove | null
+  pendingCamposFaltantes: PendingCamposFaltantes | null
 
   loadAll: () => Promise<void>
   addOrcamento: (data: AddData) => Promise<void>
@@ -201,6 +218,7 @@ interface OrcamentoStore {
   setModalEditar: (o: Orcamento | null) => void
   setModalDetalheId: (id: string | null) => void
   setPendingMove: (move: PendingMove | null) => void
+  setPendingCamposFaltantes: (p: PendingCamposFaltantes | null) => void
 }
 
 export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
@@ -211,6 +229,7 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
   modalEditar: null,
   modalDetalheId: null,
   pendingMove: null,
+  pendingCamposFaltantes: null,
   validationErrors: null,
 
   loadAll: async () => {
@@ -258,6 +277,11 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
       proxima_atividade_titulo: orcamento.proximaAtividadeTitulo ?? null,
       proxima_atividade_data: orcamento.proximaAtividadeData ?? null,
       data_entrega: orcamento.dataEntrega ?? null,
+      data_saida: orcamento.dataSaida ?? null,
+      valor_sinal: orcamento.valorSinal ?? null,
+      despachado_em: orcamento.despachadoEm ?? null,
+      condicao_parcelamento: orcamento.condicaoParcelamento ?? null,
+      detalhe_parcelamento: orcamento.detalheParcelamento ?? null,
       origem: orcamento.origem ?? null,
       campanha_ofertada: orcamento.campanhaOfertada ?? null,
       fechou_pela: orcamento.fechouPela ?? null,
@@ -578,6 +602,7 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
   setModalEditar: (o) => set({ modalEditar: o }),
   setModalDetalheId: (id) => set({ modalDetalheId: id }),
   setPendingMove: (move) => set({ pendingMove: move }),
+  setPendingCamposFaltantes: (p) => set({ pendingCamposFaltantes: p }),
   setValidationErrors: (errs) => set({ validationErrors: errs }),
 }))
 

@@ -4,6 +4,7 @@ import { formatCurrency, diasDesde, stripMask } from '../utils'
 import { useOrcamentoStore } from '../store/useOrcamentoStore'
 import { useEmpresaStore } from '../store/useEmpresaStore'
 import { usePessoaStore } from '../store/usePessoaStore'
+import { useAuthStore } from '../store/useAuthStore'
 
 interface CardProps {
   orcamento: Orcamento
@@ -30,6 +31,7 @@ export function Card({ orcamento: o, index }: CardProps) {
   const deleteOrcamento   = useOrcamentoStore((s) => s.deleteOrcamento)
   const setModalEditar    = useOrcamentoStore((s) => s.setModalEditar)
   const setModalDetalheId = useOrcamentoStore((s) => s.setModalDetalheId)
+  const isAdmin = useAuthStore((s) => s.user?.role === 'admin')
 
   const empresa = useEmpresaStore((s) =>
     o.empresaId ? s.empresas.find((e) => e.id === o.empresaId) : undefined
@@ -85,24 +87,15 @@ export function Card({ orcamento: o, index }: CardProps) {
                   </span>
                 )}
               </div>
-              {/* Contact name prominent */}
-              {primeiroContato ? (
-                <>
-                  <p className="text-white font-semibold text-base leading-tight truncate">
-                    {primeiroContato.nome}
-                  </p>
-                  {empresa && (
-                    <p className="text-slate-400 text-xs truncate">{empresa.nome}</p>
-                  )}
-                  <p className="text-slate-500 text-xs truncate mt-0.5">{o.nome}</p>
-                </>
-              ) : (
-                <>
-                  <p className="text-white font-semibold text-base leading-tight truncate">{o.nome}</p>
-                  {empresa && (
-                    <p className="text-slate-400 text-xs truncate">{empresa.nome}</p>
-                  )}
-                </>
+              {/* Nome do orçamento como título principal */}
+              <p className="text-white font-semibold text-base leading-tight truncate">{o.nome}</p>
+              {primeiroContato && (
+                <p className="text-slate-400 text-xs truncate">
+                  {primeiroContato.nome}{empresa ? ` · ${empresa.nome}` : ''}
+                </p>
+              )}
+              {!primeiroContato && empresa && (
+                <p className="text-slate-400 text-xs truncate">{empresa.nome}</p>
               )}
             </div>
             <div className="flex items-center gap-0.5 flex-shrink-0">
@@ -122,11 +115,13 @@ export function Card({ orcamento: o, index }: CardProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
               </button>
-              <button onClick={handleDelete} title="Excluir" className="text-slate-400 hover:text-red-400 p-1 rounded transition-colors">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
+              {isAdmin && (
+                <button onClick={handleDelete} title="Excluir" className="text-slate-400 hover:text-red-400 p-1 rounded transition-colors">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
 
@@ -149,8 +144,10 @@ export function Card({ orcamento: o, index }: CardProps) {
             {o.valor != null && o.valor > 0 && (
               <p className="text-accent font-semibold text-sm">{formatCurrency(o.valor)}</p>
             )}
-            {o.probabilidade != null && (
-              <p className="text-slate-400 text-xs">{o.probabilidade}% prob.</p>
+            {o.valorSinal != null && o.valorSinal > 0 && o.valor != null && (
+              <p className="font-mono text-xs text-slate-400">
+                Restante: <span className="text-amber-300 font-semibold">{formatCurrency(o.valor - o.valorSinal)}</span>
+              </p>
             )}
             {o.coluna === 'objecao' && o.tipoObjecao && (
               <p className="text-orange-400 text-xs font-medium">
