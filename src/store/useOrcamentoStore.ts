@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import toast from 'react-hot-toast'
 import { Orcamento, Coluna, TipoObjecao, Campanha, COLUNA_LABELS, PROBABILIDADE_POR_COLUNA, ItemAcao, HistoricoItem } from '../types'
-import { nowISO } from '../utils'
+import { nowISO, diasDesde } from '../utils'
 import { useAuthStore } from './useAuthStore'
 import { useFiltrosStore } from './useFiltrosStore'
 import { supabase } from '../lib/supabase'
@@ -161,6 +161,15 @@ function computeFiltradosComBusca(orcamentos: Orcamento[]): Orcamento[] {
 
   if (dataInicio) result = result.filter((o) => o.criadoEm >= dataInicio)
   if (dataFim) result = result.filter((o) => o.criadoEm <= dataFim + 'T23:59:59')
+
+  const { quickFilterColunas, quickFilterSemContato } = useFiltrosStore.getState()
+  if (quickFilterColunas !== null) {
+    result = result.filter((o) => quickFilterColunas.includes(o.coluna))
+  }
+  if (quickFilterSemContato) {
+    const terminal = new Set(['perdido', 'vendido', 'sucesso', 'lixo'])
+    result = result.filter((o) => !terminal.has(o.coluna) && diasDesde(o.ultimoContatoEm ?? o.criadoEm) > 7)
+  }
 
   return result
 }

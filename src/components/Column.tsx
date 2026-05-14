@@ -1,5 +1,5 @@
 import { Droppable } from '@hello-pangea/dnd'
-import { ColunaConfig, Orcamento } from '../types'
+import { ColunaConfig, Orcamento, COLUNA_EMPTY } from '../types'
 import { formatCurrency } from '../utils'
 import { Card } from './Card'
 import { useOrcamentoStore } from '../store/useOrcamentoStore'
@@ -58,8 +58,8 @@ export function Column({ config, orcamentos }: ColumnProps) {
             ))}
             {provided.placeholder}
             {orcamentos.length === 0 && !snapshot.isDraggingOver && (
-              <div className="text-slate-600 text-xs text-center py-6 border-2 border-dashed border-slate-700 rounded-lg">
-                Nenhum card
+              <div className="text-[12px] text-slate-500 italic text-center py-6 border-2 border-dashed border-slate-700/50 rounded-lg">
+                {COLUNA_EMPTY[config.id]}
               </div>
             )}
           </div>

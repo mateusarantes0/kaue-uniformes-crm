@@ -34,7 +34,7 @@ export function DescarteModal() {
     const motivoFinal = motivo + (obs.trim() ? ` — ${obs.trim()}` : '')
     await updateOrcamento(pendingMove.orcamentoId, { motivoDescarte: motivoFinal })
     await moveOrcamento(pendingMove.orcamentoId, 'lixo')
-    toast('Orçamento descartado', { icon: '🗑️' })
+    toast.success('Orçamento descartado.')
     setMotivo(MOTIVOS_DESCARTE[0].value)
     setObs('')
     setSaving(false)

@@ -155,7 +155,7 @@ export function OrcamentoModal() {
     if (!o) return
     setSaving(true)
     await marcarComoGanha(o.id, (fechouPela as Campanha) || undefined)
-    toast.success('🏆 Marcado como Ganho!')
+    toast.success('Orçamento marcado como ganho.')
     setSaving(false)
     close()
   }
@@ -164,7 +164,7 @@ export function OrcamentoModal() {
     if (!o) return
     setSaving(true)
     await marcarComoPerdida(o.id, perdidaTipo, perdidaObs || undefined)
-    toast('😢 Marcado como Perdido')
+    toast.success('Orçamento marcado como perdido.')
     setSaving(false)
     close()
   }

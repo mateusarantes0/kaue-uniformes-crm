@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { Coluna } from '../types'
 
 export type OperadorLogico = 'AND' | 'OR'
 
@@ -25,6 +26,8 @@ interface FiltrosStore {
   dataInicio: string
   dataFim: string
   filtrosModalOpen: boolean
+  quickFilterColunas: Coluna[] | null
+  quickFilterSemContato: boolean
 
   update: (patch: Partial<Pick<FiltrosStore, 'busca' | 'operadorRaiz' | 'dataInicio' | 'dataFim' | 'filtrosModalOpen'>>) => void
   addGrupo: () => void
@@ -33,6 +36,9 @@ interface FiltrosStore {
   addCondicao: (grupoId: string) => void
   removeCondicao: (grupoId: string, condId: string) => void
   updateCondicao: (grupoId: string, condId: string, patch: Partial<Omit<Condicao, 'id'>>) => void
+  setQuickFilterColunas: (colunas: Coluna[] | null) => void
+  setQuickFilterSemContato: (v: boolean) => void
+  clearQuickFilter: () => void
   resetFiltros: () => void
   hasFiltros: () => boolean
 }
@@ -50,6 +56,8 @@ export const useFiltrosStore = create<FiltrosStore>((set, get) => ({
   dataInicio: '',
   dataFim: '',
   filtrosModalOpen: false,
+  quickFilterColunas: null,
+  quickFilterSemContato: false,
 
   update: (patch) => set(patch as Partial<FiltrosStore>),
 
@@ -96,6 +104,15 @@ export const useFiltrosStore = create<FiltrosStore>((set, get) => ({
       ),
     })),
 
+  setQuickFilterColunas: (colunas) =>
+    set({ quickFilterColunas: colunas, quickFilterSemContato: false }),
+
+  setQuickFilterSemContato: (v) =>
+    set({ quickFilterSemContato: v, quickFilterColunas: null }),
+
+  clearQuickFilter: () =>
+    set({ quickFilterColunas: null, quickFilterSemContato: false }),
+
   resetFiltros: () =>
     set((s) => ({
       busca: '',
@@ -104,11 +121,13 @@ export const useFiltrosStore = create<FiltrosStore>((set, get) => ({
       dataInicio: '',
       dataFim: '',
       filtrosModalOpen: s.filtrosModalOpen,
+      quickFilterColunas: null,
+      quickFilterSemContato: false,
     })),
 
   hasFiltros: () => {
-    const { busca, grupos, dataInicio, dataFim } = get()
+    const { busca, grupos, dataInicio, dataFim, quickFilterColunas, quickFilterSemContato } = get()
     const gruposComCondicoes = grupos.filter((g) => g.condicoes.some((c) => c.valor))
-    return !!busca || gruposComCondicoes.length > 0 || !!dataInicio || !!dataFim
+    return !!busca || gruposComCondicoes.length > 0 || !!dataInicio || !!dataFim || quickFilterColunas !== null || quickFilterSemContato
   },
 }))

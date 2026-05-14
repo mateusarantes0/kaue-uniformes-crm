@@ -90,13 +90,13 @@ export function OrcamentoDetalhe() {
 
   const handleGanha = () => {
     marcarComoGanha(o.id)
-    toast.success('🏆 Orçamento fechado como ganho!')
+    toast.success('Orçamento marcado como ganho.')
     close()
   }
 
   const handlePerdida = () => {
     marcarComoPerdida(o.id, perdidaTipo, perdidaObs || undefined)
-    toast('😢 Orçamento marcado como perdido')
+    toast.success('Orçamento marcado como perdido.')
     setShowPerdida(false)
     close()
   }
@@ -113,10 +113,10 @@ export function OrcamentoDetalhe() {
     setShowFecharNegocio(false)
     if (result === 'vendido') {
       marcarComoGanha(o.id, fechouPela)
-      toast.success('🏆 Orçamento fechado como ganho!')
+      toast.success('Orçamento marcado como ganho.')
     } else {
       marcarComoPerdida(o.id, tipoObj!, obs)
-      toast('😢 Orçamento marcado como perdido')
+      toast.success('Orçamento marcado como perdido.')
     }
     close()
   }

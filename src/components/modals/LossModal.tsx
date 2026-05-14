@@ -24,10 +24,10 @@ export function ObjecaoModal() {
   const handleConfirm = () => {
     if (isPerdido) {
       marcarComoPerdida(pendingMove.orcamentoId, tipo, observacao || undefined)
-      toast('Marcado como Perdido', { icon: '😢' })
+      toast.success('Orçamento marcado como perdido.')
     } else {
       moveOrcamento(pendingMove.orcamentoId, 'objecao', tipo, observacao || undefined)
-      toast('Objeção registrada', { icon: '⚠️' })
+      toast.success('Objeção registrada.')
     }
     setTipo('preco')
     setObservacao('')

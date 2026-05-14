@@ -462,3 +462,17 @@ export const COLUNA_BADGE: Record<Coluna, string> = {
   perdido:           'bg-red-900/40 text-red-400',
   lixo:              'bg-slate-800 text-slate-500',
 }
+
+export const COLUNA_EMPTY: Record<Coluna, string> = {
+  lead:              'Adicione o primeiro contato',
+  qualificacao:      'Sem leads qualificados',
+  orcamento_enviado: 'Nenhum orçamento enviado',
+  negociacao:        'Sem negociações ativas',
+  objecao:           'Sem objeções no momento',
+  aguardando:        'Nada aguardando pagamento',
+  vendido:           'Nenhuma venda confirmada',
+  despacho:          'Nada pronto para despacho',
+  sucesso:           'Nenhuma entrega concluída',
+  perdido:           'Sem perdas registradas',
+  lixo:              'Nenhum descarte',
+}

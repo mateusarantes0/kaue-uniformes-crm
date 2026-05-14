@@ -21,7 +21,7 @@ export function GanhoModal() {
 
   const handleConfirm = async () => {
     await marcarComoGanha(pendingMove.orcamentoId, (fechouPela as Campanha) || undefined)
-    toast.success('🏆 Marcado como Ganho!')
+    toast.success('Orçamento marcado como ganho.')
     setFechouPela('')
     setPendingMove(null)
   }
