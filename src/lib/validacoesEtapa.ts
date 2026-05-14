@@ -56,8 +56,8 @@ export function validarMudancaColuna(
     if (!empresa?.cnpj?.trim()) erros.push('CNPJ da empresa é obrigatório')
   }
 
-  // vendido, despacho, sucesso: fechouPela
-  if (destino === 'vendido' || destino === 'despacho' || destino === 'sucesso') {
+  // vendido: fechouPela (despacho/sucesso já vêm do vendido, campo já preenchido)
+  if (destino === 'vendido') {
     if (!orc.fechouPela) erros.push('Campanha de fechamento é obrigatória')
   }
 

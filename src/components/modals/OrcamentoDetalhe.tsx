@@ -124,7 +124,7 @@ export function OrcamentoDetalhe() {
   const handleTrailClick = (destino: Coluna) => {
     if (destino === o.coluna) return
     const empresa = o.empresaId ? empresas.find((e) => e.id === o.empresaId) : undefined
-    const modalDestinos: Coluna[] = ['objecao', 'perdido', 'lixo', 'vendido', 'despacho', 'sucesso']
+    const modalDestinos: Coluna[] = ['objecao', 'perdido', 'lixo', 'vendido']
 
     if (!modalDestinos.includes(destino)) {
       const { ok, erros } = validarMudancaColuna(o, destino, empresa)
@@ -139,7 +139,7 @@ export function OrcamentoDetalhe() {
 
     if (destino === 'objecao') {
       close(); setPendingMove({ orcamentoId: o.id, colunaDestino: 'objecao', motivo: 'objecao' })
-    } else if (destino === 'vendido' || destino === 'despacho' || destino === 'sucesso') {
+    } else if (destino === 'vendido') {
       const { ok, erros } = validarMudancaColuna(o, destino, empresa)
       if (!ok) { setCamposFaltantes({ colunaDestino: destino, erros }); return }
       close(); setPendingMove({ orcamentoId: o.id, colunaDestino: destino, motivo: 'ganho' })

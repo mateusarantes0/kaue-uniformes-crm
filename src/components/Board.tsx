@@ -36,7 +36,7 @@ export function Board() {
     if (!orc) return
 
     // Validate for non-modal destinations
-    const modalDestinos: Coluna[] = ['objecao', 'perdido', 'lixo', 'vendido', 'despacho', 'sucesso']
+    const modalDestinos: Coluna[] = ['objecao', 'perdido', 'lixo', 'vendido']
     if (!modalDestinos.includes(destColuna)) {
       const empresa = orc.empresaId ? empresas.find((e) => e.id === orc.empresaId) : undefined
       const { ok, erros } = validarMudancaColuna(orc, destColuna, empresa)
@@ -53,7 +53,7 @@ export function Board() {
       setPendingMove({ orcamentoId: draggableId, colunaDestino: 'perdido', motivo: 'perdido' })
     } else if (destColuna === 'lixo') {
       setPendingMove({ orcamentoId: draggableId, colunaDestino: 'lixo', motivo: 'lixo' })
-    } else if (destColuna === 'vendido' || destColuna === 'despacho' || destColuna === 'sucesso') {
+    } else if (destColuna === 'vendido') {
       setPendingMove({ orcamentoId: draggableId, colunaDestino: destColuna, motivo: 'ganho' })
     } else {
       moveOrcamento(draggableId, destColuna)
