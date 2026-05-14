@@ -12,6 +12,7 @@ import {
 import { ModalShell, Field } from './CreateModal'
 import { SearchableSelect, SearchableItem } from '../ui/SearchableSelect'
 import { CurrencyInput } from '../ui/CurrencyInput'
+import { AtividadesLista } from '../orcamento/AtividadesLista'
 import { formatDateTime } from '../../utils'
 
 const COLUNA_OPTIONS: Coluna[] = ['lead', 'qualificacao', 'orcamento_enviado', 'negociacao', 'aguardando']
@@ -70,12 +71,6 @@ export function OrcamentoModal() {
   const [orcamentoEnviadoEm, setOrcamentoEnviadoEm] = useState(o?.orcamentoEnviadoEm ?? '')
   const [dataFechamentoEsperada, setDataFechamentoEsperada] = useState(
     o?.dataFechamentoEsperada ?? (isEdit ? '' : plus15ISO())
-  )
-  const [proximaAtividadeTitulo, setProximaAtividadeTitulo] = useState(
-    o?.proximaAtividadeTitulo ?? (isEdit ? '' : 'Primeiro contato')
-  )
-  const [proximaAtividadeData, setProximaAtividadeData] = useState(
-    o?.proximaAtividadeData ?? (isEdit ? '' : todayISO())
   )
   const [dataEntrega, setDataEntrega] = useState(o?.dataEntrega ?? '')
   const [dataSaida, setDataSaida]     = useState(o?.dataSaida ?? '')
@@ -139,8 +134,6 @@ export function OrcamentoModal() {
       ultimoContatoEm: ultimoContatoEm || undefined,
       orcamentoEnviadoEm: orcamentoEnviadoEm || undefined,
       dataFechamentoEsperada: dataFechamentoEsperada || undefined,
-      proximaAtividadeTitulo: proximaAtividadeTitulo || undefined,
-      proximaAtividadeData: proximaAtividadeData || undefined,
       dataEntrega: dataEntrega || undefined,
       dataSaida: dataSaida || undefined,
       campanhaOfertada: (campanhaOfertada as Campanha) || undefined,
@@ -392,15 +385,6 @@ export function OrcamentoModal() {
               </div>
             </div>
           </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Próxima Atividade">
-              <input className="input" value={proximaAtividadeTitulo} onChange={(e) => setProximaAtividadeTitulo(e.target.value)} placeholder="Ex: Ligar amanhã" />
-            </Field>
-            <Field label="Data da Atividade">
-              <input className="input" type="date" value={proximaAtividadeData} onChange={(e) => setProximaAtividadeData(e.target.value)} />
-            </Field>
-          </div>
-
           <Field label="Campanha Ofertada">
             <select className="input" value={campanhaOfertada} onChange={(e) => setCampanhaOfertada(e.target.value as Campanha | '')}>
               <option value="">— Nenhuma —</option>
@@ -420,20 +404,17 @@ export function OrcamentoModal() {
 
       {/* Tab 2 — Detalhes */}
       {tab === 2 && (
-        <div className="space-y-3">
-          <Field label="Comentário">
-            <textarea
-              className="input resize-none"
-              rows={5}
-              value={cenarioAtual}
-              onChange={(e) => setCenarioAtual(e.target.value)}
-              placeholder="Descreva o contexto e situação atual do cliente..."
-            />
-          </Field>
-          {isEdit && o && (
+        <div className="space-y-4">
+          {isEdit && o ? (
             <div>
-              <p className="text-xs text-slate-400 mb-1">Itens de Ação</p>
-              <p className="text-xs text-slate-500">Gerencie os itens de ação no painel de detalhe do orçamento.</p>
+              <p className="text-xs font-semibold text-accent uppercase tracking-wide mb-2">Atividades</p>
+              <AtividadesLista orcamentoId={o.id} />
+            </div>
+          ) : (
+            <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+              <p className="text-sm text-slate-400">
+                As atividades poderão ser adicionadas após criar o orçamento.
+              </p>
             </div>
           )}
         </div>

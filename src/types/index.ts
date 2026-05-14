@@ -81,8 +81,6 @@ export interface Orcamento {
   ultimoContatoEm?: string
   orcamentoEnviadoEm?: string
   dataFechamentoEsperada?: string
-  proximaAtividadeTitulo?: string
-  proximaAtividadeData?: string
   vendidoEm?: string
   dataPerda?: string
   dataEntrega?: string

@@ -13,7 +13,8 @@ import { useAuthStore } from '../../store/useAuthStore'
 import { StageBadge } from '../orcamento/StageBadge'
 import { ContactCard } from '../orcamento/ContactCard'
 import { DateRow } from '../orcamento/DateRow'
-import { CenarioInlineEditable } from '../orcamento/CenarioInlineEditable'
+import { ComentariosChat } from '../orcamento/ComentariosChat'
+import { AtividadesLista } from '../orcamento/AtividadesLista'
 import { ActionItem } from '../orcamento/ActionItem'
 import { AddActionItem } from '../orcamento/AddActionItem'
 import { HistoricoEntry } from '../orcamento/HistoricoEntry'
@@ -297,8 +298,6 @@ export function OrcamentoDetalhe() {
               <DateRow label="Último contato em"   value={o.ultimoContatoEm} />
               <DateRow label="Orçamento enviado em" value={o.orcamentoEnviadoEm} />
               <DateRow label="Fechamento esperado"  value={o.dataFechamentoEsperada} />
-              <DateRow label="Próxima atividade"    value={o.proximaAtividadeTitulo} isText accent />
-              <DateRow label="Data da atividade"    value={o.proximaAtividadeData} accent />
               {(o.coluna === 'vendido' || o.coluna === 'despacho' || o.coluna === 'sucesso') && (
                 <>
                   <DateRow label="Vendido em"      value={o.vendidoEm} />
@@ -368,15 +367,21 @@ export function OrcamentoDetalhe() {
           </div>
 
           {/* PANE DIREITO */}
-          <div className="bg-card overflow-y-auto px-7 py-5 min-w-0">
+          <div className="bg-card overflow-y-auto px-7 py-5 min-w-0 flex flex-col">
 
-            <SectionTitle>Comentário</SectionTitle>
-            <CenarioInlineEditable
-              value={o.cenarioAtual}
-              onChange={(texto) => updateOrcamento(o.id, { cenarioAtual: texto })}
-            />
+            <div className="flex-1 min-h-0 flex flex-col">
+              <SectionTitle>Comentários</SectionTitle>
+              <div className="flex-1 min-h-0" style={{ minHeight: 240 }}>
+                <ComentariosChat orcamentoId={o.id} />
+              </div>
+            </div>
 
-            <div className="mt-6">
+            <div className="mt-6 flex-shrink-0">
+              <SectionTitle>Atividades</SectionTitle>
+              <AtividadesLista orcamentoId={o.id} />
+            </div>
+
+            <div className="mt-6 flex-shrink-0">
               <SectionTitle>Itens de Ação</SectionTitle>
               {o.itensAcao.length === 0 && (
                 <p className="text-[13px] text-slate-500 italic">Nenhum item ainda.</p>
@@ -394,7 +399,7 @@ export function OrcamentoDetalhe() {
               <AddActionItem onAdd={(texto) => addItemAcao(o.id, texto)} />
             </div>
 
-            <div className="mt-6">
+            <div className="mt-6 flex-shrink-0">
               <SectionTitle>Histórico</SectionTitle>
               <div className="max-h-[300px] overflow-y-auto pr-1">
                 {[...o.historico].reverse().map((entry, i, arr) => (

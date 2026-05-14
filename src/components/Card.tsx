@@ -6,6 +6,7 @@ import { useEmpresaStore } from '../store/useEmpresaStore'
 import { usePessoaStore } from '../store/usePessoaStore'
 import { useAuthStore } from '../store/useAuthStore'
 import { calcularStatusCard } from '../lib/statusCard'
+import { useAtividadesStore } from '../store/useAtividadesStore'
 
 interface CardProps {
   orcamento: Orcamento
@@ -46,6 +47,14 @@ export function Card({ orcamento: o, index }: CardProps) {
   const oldContact = dias > 7
   const itensPendentes = o.itensAcao.filter((i) => !i.concluido).length
   const statusCard = calcularStatusCard(o)
+  const resumoAtiv = useAtividadesStore((s) => s.resumo[o.id])
+  const atividadeBadge = (() => {
+    if (!resumoAtiv || resumoAtiv.pendentes === 0) return null
+    const hoje = new Date().toISOString().split('T')[0]
+    if (!resumoAtiv.proximaData || resumoAtiv.proximaData <= hoje) return 'hoje'
+    const diff = Math.ceil((new Date(resumoAtiv.proximaData + 'T00:00:00').getTime() - Date.now()) / 86400000)
+    return `D-${diff}`
+  })()
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -88,6 +97,15 @@ export function Card({ orcamento: o, index }: CardProps) {
                 {itensPendentes > 0 && (
                   <span className="text-xs bg-amber-900/40 text-amber-400 px-1.5 py-0.5 rounded-full leading-none">
                     {itensPendentes}✓
+                  </span>
+                )}
+                {atividadeBadge && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full leading-none font-medium ${
+                    atividadeBadge === 'hoje'
+                      ? 'bg-orange-900/50 text-orange-300'
+                      : 'bg-slate-700 text-slate-400'
+                  }`}>
+                    {atividadeBadge === 'hoje' ? '🔔 hoje' : `📅 ${atividadeBadge}`}
                   </span>
                 )}
               </div>
