@@ -34,19 +34,23 @@ async function fetchAllProfiles(): Promise<User[]> {
 }
 
 async function loadStoresParallel() {
-  const [{ useEmpresaStore }, { usePessoaStore }, { useOrcamentoStore }] = await Promise.all([
+  const [{ useEmpresaStore }, { usePessoaStore }, { useOrcamentoStore }, { useNotificacoesStore }] = await Promise.all([
     import('./useEmpresaStore'),
     import('./usePessoaStore'),
     import('./useOrcamentoStore'),
+    import('./useNotificacoesStore'),
   ])
   Promise.allSettled([
     useEmpresaStore.getState().loadAll(),
     usePessoaStore.getState().loadAll(),
     useOrcamentoStore.getState().loadAll(),
+    useNotificacoesStore.getState().loadAll(),
   ]).then((results) => {
     results.forEach((r, i) => {
       if (r.status === 'rejected') console.error(`Store ${i} falhou ao carregar:`, r.reason)
     })
+    // Inicia subscription de notificações em tempo real após carregar
+    useNotificacoesStore.getState().subscribeRealtime()
   })
 }
 

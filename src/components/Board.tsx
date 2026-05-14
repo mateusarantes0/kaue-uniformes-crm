@@ -19,6 +19,9 @@ export function Board() {
 
   const empresas = useEmpresaStore((s) => s.empresas)
 
+  const mostrarArquivados  = useOrcamentoStore((s) => s.mostrarArquivados)
+  const setMostrarArquivados = useOrcamentoStore((s) => s.setMostrarArquivados)
+
   const busca   = useFiltrosStore((s) => s.busca)
   const update  = useFiltrosStore((s) => s.update)
   const hasFiltros = useFiltrosStore((s) => s.hasFiltros())
@@ -85,6 +88,19 @@ export function Board() {
             {busca ? 'Limpar busca' : ''}
           </button>
         )}
+        <button
+          onClick={() => setMostrarArquivados(!mostrarArquivados)}
+          className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm transition-colors ${
+            mostrarArquivados
+              ? 'border-amber-500/60 text-amber-400 bg-amber-900/20'
+              : 'border-slate-700 text-slate-500 hover:text-slate-300 hover:bg-slate-700/40'
+          }`}
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2L19 8m-9 4v4m4-4v4" />
+          </svg>
+          {mostrarArquivados ? 'Ocultar arquivados' : 'Arquivados'}
+        </button>
       </div>
 
       <DragDropContext onDragEnd={handleDragEnd}>

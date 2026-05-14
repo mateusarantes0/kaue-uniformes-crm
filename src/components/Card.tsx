@@ -5,6 +5,7 @@ import { useOrcamentoStore } from '../store/useOrcamentoStore'
 import { useEmpresaStore } from '../store/useEmpresaStore'
 import { usePessoaStore } from '../store/usePessoaStore'
 import { useAuthStore } from '../store/useAuthStore'
+import { calcularStatusCard } from '../lib/statusCard'
 
 interface CardProps {
   orcamento: Orcamento
@@ -44,6 +45,7 @@ export function Card({ orcamento: o, index }: CardProps) {
   const dias = diasDesde(o.ultimoContatoEm ?? o.criadoEm)
   const oldContact = dias > 7
   const itensPendentes = o.itensAcao.filter((i) => !i.concluido).length
+  const statusCard = calcularStatusCard(o)
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -72,9 +74,11 @@ export function Card({ orcamento: o, index }: CardProps) {
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           onClick={() => setModalDetalheId(o.id)}
-          className={`bg-card border-l-4 border-l-slate-600 rounded-lg p-3 mb-2 cursor-pointer active:cursor-grabbing transition-shadow select-none ${
-            snapshot.isDragging ? 'shadow-2xl ring-1 ring-primary-light/50' : 'hover:shadow-lg'
-          }`}
+          className={`rounded-lg p-3 mb-2 cursor-pointer active:cursor-grabbing transition-shadow select-none border-l-4 ${
+            statusCard === 'vermelho' ? 'bg-red-500/15 border-red-500' :
+            statusCard === 'amarelo' ? 'bg-yellow-500/10 border-yellow-500' :
+            'bg-card border-l-slate-600'
+          } ${snapshot.isDragging ? 'shadow-2xl ring-1 ring-primary-light/50' : 'hover:shadow-lg'}`}
         >
           {/* Top row */}
           <div className="flex items-start justify-between gap-1 mb-1.5">

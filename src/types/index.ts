@@ -103,6 +103,7 @@ export interface Orcamento {
   despachadoEm?: string
   justificativaQuantidadeMinima?: string
   motivoDescarte?: string
+  arquivadoEm?: string
   itensAcao: ItemAcao[]
   historico: HistoricoItem[]
   criadoEm: string
@@ -426,6 +427,28 @@ export const COLUNA_BADGE_COLORS: Record<Coluna, { fg: string; bg: string }> = {
   sucesso:           { fg: 'text-emerald-300', bg: 'bg-emerald-500/20' },
   perdido:           { fg: 'text-red-300',     bg: 'bg-red-500/20' },
   lixo:              { fg: 'text-slate-500',   bg: 'bg-slate-700/30' },
+}
+
+export const LIMITE_DIAS_POR_COLUNA: Record<Coluna, number | null> = {
+  lead: 1,
+  qualificacao: 2,
+  orcamento_enviado: 5,
+  negociacao: 15,
+  objecao: 45,
+  aguardando: null,
+  vendido: null,
+  despacho: null,
+  sucesso: null,
+  perdido: null,
+  lixo: null,
+}
+
+export const TRANSICAO_VENCIMENTO: Partial<Record<Coluna, { destino: Coluna; tipoObjecao: TipoObjecao }>> = {
+  lead: { destino: 'objecao', tipoObjecao: 'sem_retorno' },
+  qualificacao: { destino: 'objecao', tipoObjecao: 'sem_retorno' },
+  orcamento_enviado: { destino: 'objecao', tipoObjecao: 'sem_retorno' },
+  negociacao: { destino: 'objecao', tipoObjecao: 'preco' },
+  objecao: { destino: 'perdido', tipoObjecao: 'sem_retorno' },
 }
 
 export const COLUNA_BADGE: Record<Coluna, string> = {

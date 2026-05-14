@@ -35,6 +35,7 @@ function rowToOrcamento(row: Record<string, unknown>): Orcamento {
     dataSaida: row.data_saida as string | undefined,
     valorSinal: row.valor_sinal as number | undefined,
     despachadoEm: row.despachado_em as string | undefined,
+    arquivadoEm: row.arquivado_em as string | undefined,
     condicaoParcelamento: row.condicao_parcelamento as Orcamento['condicaoParcelamento'] | undefined,
     detalheParcelamento: row.detalhe_parcelamento as string | undefined,
     origem: row.origem as Orcamento['origem'],
@@ -97,6 +98,7 @@ function orcamentoToUpdateRow(orc: Orcamento, userId: string): Record<string, un
     probabilidade_editada_manualmente: orc.probabilidadeEditadaManualmente ?? false,
     itens_acao: orc.itensAcao ?? [],
     historico: orc.historico ?? [],
+    arquivado_em: orc.arquivadoEm ?? null,
     atualizado_por: userId,
     atualizado_em: nowISO(),
   }
@@ -196,6 +198,7 @@ interface OrcamentoStore {
   modalDetalheId: string | null
   pendingMove: PendingMove | null
   pendingCamposFaltantes: PendingCamposFaltantes | null
+  mostrarArquivados: boolean
 
   loadAll: () => Promise<void>
   addOrcamento: (data: AddData) => Promise<void>
@@ -219,6 +222,7 @@ interface OrcamentoStore {
   setModalDetalheId: (id: string | null) => void
   setPendingMove: (move: PendingMove | null) => void
   setPendingCamposFaltantes: (p: PendingCamposFaltantes | null) => void
+  setMostrarArquivados: (v: boolean) => void
 }
 
 export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
@@ -231,12 +235,18 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
   pendingMove: null,
   pendingCamposFaltantes: null,
   validationErrors: null,
+  mostrarArquivados: false,
 
   loadAll: async () => {
-    const { data, error } = await supabase
+    const { mostrarArquivados } = get()
+    let query = supabase
       .from('orcamentos')
       .select('*')
       .order('criado_em', { ascending: false })
+    if (!mostrarArquivados) {
+      query = query.is('arquivado_em', null)
+    }
+    const { data, error } = await query
     if (error) { console.error(error); return }
     const orcamentos = (data as Record<string, unknown>[]).map(rowToOrcamento)
     set({
@@ -604,6 +614,10 @@ export const useOrcamentoStore = create<OrcamentoStore>((set, get) => ({
   setPendingMove: (move) => set({ pendingMove: move }),
   setPendingCamposFaltantes: (p) => set({ pendingCamposFaltantes: p }),
   setValidationErrors: (errs) => set({ validationErrors: errs }),
+  setMostrarArquivados: (v) => {
+    set({ mostrarArquivados: v })
+    useOrcamentoStore.getState().loadAll()
+  },
 }))
 
 useAuthStore.subscribe(() => {

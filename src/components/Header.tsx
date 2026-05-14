@@ -5,7 +5,9 @@ import { usePessoaStore } from '../store/usePessoaStore'
 import { useEmpresaStore } from '../store/useEmpresaStore'
 import { useNavStore } from '../store/useNavStore'
 import { useAuthStore } from '../store/useAuthStore'
+import { useNotificacoesStore } from '../store/useNotificacoesStore'
 import { ChangePasswordModal } from './ChangePasswordModal'
+import { NotificacoesPanel } from './NotificacoesPanel'
 import { EntityType } from '../types'
 
 const TABS_BASE: { id: EntityType; label: string; emoji: string; adminOnly?: boolean }[] = [
@@ -28,7 +30,9 @@ export function Header() {
 
   const TABS = TABS_BASE.filter((t) => !t.adminOnly || user?.role === 'admin')
 
+  const naoLidas = useNotificacoesStore((s) => s.naoLidas)
   const [changePwOpen, setChangePwOpen] = useState(false)
+  const [notifOpen, setNotifOpen] = useState(false)
 
   const handleLogout = () => {
     logout()
@@ -88,6 +92,26 @@ export function Header() {
             {user && (
               <>
                 <span className="text-slate-300 text-sm hidden sm:block">{user.name}</span>
+
+                {/* Sino de notificações */}
+                <div className="relative">
+                  <button
+                    onClick={() => setNotifOpen((v) => !v)}
+                    title="Notificações"
+                    className="relative text-slate-400 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-slate-700/50"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                    {naoLidas > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5">
+                        {naoLidas > 99 ? '99+' : naoLidas}
+                      </span>
+                    )}
+                  </button>
+                  {notifOpen && <NotificacoesPanel onClose={() => setNotifOpen(false)} />}
+                </div>
+
                 <button
                   onClick={() => setChangePwOpen(true)}
                   title="Alterar senha"
